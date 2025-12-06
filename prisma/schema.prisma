@@ -1,0 +1,59 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Candidate {
+  id           String       @id @default(uuid())
+  name         String
+  email        String       @unique
+  phone        String
+  altPhone     String?
+  usn          String
+  collegeName  String
+  passoutBatch String
+  branch       String
+  sem          Int
+  cgpa         Float
+  submissions  Submission[]
+  createdAt    DateTime     @default(now())
+}
+
+model Test {
+  id          String       @id // Can be any string, e.g., "main-test"
+  title       String
+  questions   Question[]
+  submissions Submission[]
+}
+
+model Question {
+  id       String @id @default(uuid())
+  testId   String
+  question String
+  option1  String
+  option2  String
+  option3  String
+  option4  String
+  answer   String
+  test     Test   @relation(fields: [testId], references: [id])
+
+  @@index([testId])
+}
+
+model Submission {
+  id          String    @id @default(uuid())
+  testId      String
+  candidateId String
+  answers     Json
+  score       Int
+  submittedAt DateTime  @default(now())
+  candidate   Candidate @relation(fields: [candidateId], references: [id])
+  test        Test      @relation(fields: [testId], references: [id])
+
+  @@unique([testId, candidateId])
+  @@index([candidateId])
+}
