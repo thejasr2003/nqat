@@ -73,7 +73,7 @@ function TestContent() {
 
       const result = await response.json();
       localStorage.removeItem("testEndTime");
-      router.push(`/result?score=${result.score}&total=${result.total}`);
+      router.push(`/result`);
     } catch (err: any) {
       setError(err.message || "Submission failed");
       setSubmitting(false);

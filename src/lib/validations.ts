@@ -5,8 +5,8 @@ export const candidateSchema = z.object({
   email: z.string().email("Invalid email address"),
   phone: z
     .string()
-    .regex(/^\d{10}$/, "Phone number must be 10 digits")
-    .min(10, "Phone number is required"),
+    .min(10, "Phone number is required")
+    .regex(/^\d{10}$/, "Phone number must be 10 digits"),
   altPhone: z
     .string()
     .regex(/^\d{10}$/, "Phone number must be 10 digits")
@@ -17,7 +17,10 @@ export const candidateSchema = z.object({
   passoutBatch: z.string().min(4, "Passout batch is required"),
   branch: z.string().min(2, "Branch is required"),
   sem: z.number().min(1).max(8, "Semester must be between 1 and 8"),
-  cgpa: z.number().min(0).max(10, "CGPA must be between 0 and 10"),
+  cgpa: z.number().min(0).max(10, "CGPA must be between 0 and 10").refine(
+    (val) => !isNaN(val),
+    "CGPA must be a valid number"
+  ),
 });
 
 export const questionSchema = z.object({

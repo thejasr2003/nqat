@@ -16,27 +16,44 @@ export async function GET() {
             branch: true,
           },
         },
+        test: {
+          select: {
+            id: true,
+            questions: {
+              select: {
+                id: true,
+              },
+            },
+          },
+        },
       },
       orderBy: {
         submittedAt: "desc",
       },
     });
 
-    const results = submissions.map((submission) => ({
-      id: submission.id,
-      candidateId: submission.candidateId,
-      candidateName: submission.candidate.name,
-      email: submission.candidate.email,
-      phone: submission.candidate.phone,
-      usn: submission.candidate.usn,
-      collegeName: submission.candidate.collegeName,
-      branch: submission.candidate.branch,
-      score: submission.score,
-      total: submission.testId === "main-test" ? 25 : 25, // Default to 25 questions
-      percentage: submission.testId === "main-test" ? Math.round((submission.score / 25) * 100) : 0,
-      submittedAt: submission.submittedAt,
-      status: submission.score >= 30 ? "selected" : "rejected",
-    }));
+    const results = submissions.map((submission) => {
+      // Calculate total marks based on actual number of questions
+      // Each question = 2 marks
+      const questionCount = submission.test.questions.length;
+      const totalMarks = questionCount * 2;
+      
+      return {
+        id: submission.id,
+        candidateId: submission.candidateId,
+        candidateName: submission.candidate.name,
+        email: submission.candidate.email,
+        phone: submission.candidate.phone,
+        usn: submission.candidate.usn,
+        collegeName: submission.candidate.collegeName,
+        branch: submission.candidate.branch,
+        score: submission.score,
+        total: totalMarks,
+        percentage: Math.round((submission.score / totalMarks) * 100),
+        submittedAt: submission.submittedAt,
+        status: submission.score >= 30 ? "selected" : "rejected",
+      };
+    });
 
     return NextResponse.json(results);
   } catch (error) {

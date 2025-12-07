@@ -30,14 +30,18 @@ export async function POST(req: NextRequest) {
       where: { testId: validatedData.testId },
     });
 
-    // Calculate score
-    let score = 0;
+    // Calculate score (2 marks per correct answer)
+    let correctAnswers = 0;
     for (const question of questions) {
       const userAnswer = validatedData.answers[question.id];
       if (userAnswer === question.answer) {
-        score++;
+        correctAnswers++;
       }
     }
+
+    // Total marks = number of questions × 2
+    const totalMarks = questions.length * 2;
+    const score = correctAnswers * 2;
 
     // Create submission
     const submission = await prisma.submission.create({
@@ -51,8 +55,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       score: score,
-      total: questions.length,
-      percentage: Math.round((score / questions.length) * 100),
+      total: totalMarks,
+      percentage: Math.round((score / totalMarks) * 100),
       message: "Test submitted successfully",
     });
   } catch (error: any) {

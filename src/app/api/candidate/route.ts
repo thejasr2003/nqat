@@ -28,9 +28,32 @@ export async function POST(req: NextRequest) {
       message: "Candidate created successfully",
     });
   } catch (error: any) {
+    console.error("Candidate creation error:", error);
+    
     if (error.code === "P2002") {
+      const field = error.meta?.target?.[0];
+      
+      if (field === "email") {
+        return NextResponse.json(
+          { error: "This email is already registered. Please use a different email." },
+          { status: 400 }
+        );
+      } else if (field === "usn") {
+        return NextResponse.json(
+          { error: "This USN is already registered. Please check your USN." },
+          { status: 400 }
+        );
+      } else {
+        return NextResponse.json(
+          { error: `This ${field} is already registered.` },
+          { status: 400 }
+        );
+      }
+    }
+
+    if (error.name === "ZodError") {
       return NextResponse.json(
-        { error: "Email already registered" },
+        { error: "Validation failed", details: error.errors },
         { status: 400 }
       );
     }
