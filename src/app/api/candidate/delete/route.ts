@@ -2,16 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 /**
- * DELETE /api/candidate/[id]
+ * DELETE /api/candidate/delete?id={candidateId}
  * Deletes a candidate and all their submissions
  * Questions are NOT deleted
  */
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(request: NextRequest) {
   try {
-    const candidateId = params.id;
+    const searchParams = request.nextUrl.searchParams;
+    const candidateId = searchParams.get("id");
 
     if (!candidateId) {
       return NextResponse.json(
