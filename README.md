@@ -4,15 +4,15 @@ A production-grade Next.js 14 application for conducting online Multiple Choice 
 
 ## Features
 
-✅ **Landing Page** - Professional welcome interface
-✅ **Student Registration** - Personal details form with validation
-✅ **Interactive Test Interface** - 25 MCQ questions with free navigation
-✅ **Live Timer** - 25-minute countdown with persistence
-✅ **Auto-Submit** - Automatic submission on timeout
-✅ **Instant Results** - Score calculation and performance badges
-✅ **Admin Panel** - Add questions to the test
-✅ **Database** - Prisma ORM with PostgreSQL Accelerate
-✅ **Responsive Design** - Mobile-friendly UI with TailwindCSS
+**Landing Page** - Professional welcome interface
+**Student Registration** - Personal details form with validation
+**Interactive Test Interface** - 25 MCQ questions with free navigation
+**Live Timer** - 25-minute countdown with persistence
+**Auto-Submit** - Automatic submission on timeout
+**Instant Results** - Score calculation and performance badges
+**Admin Panel** - Add questions to the test
+**Database** - Prisma ORM with PostgreSQL Accelerate
+**Responsive Design** - Mobile-friendly UI with TailwindCSS
 
 ## Tech Stack
 
@@ -369,3 +369,6 @@ For issues or questions, please contact the development team.
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+// to delete the all the Delete all candidates:
+curl http://localhost:3000/api/candidate/delete?action=deleteAll

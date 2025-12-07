@@ -13,7 +13,7 @@ model Candidate {
   email        String       @unique
   phone        String
   altPhone     String?
-  usn          String
+  usn          String       @unique
   collegeName  String
   passoutBatch String
   branch       String
