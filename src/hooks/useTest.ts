@@ -8,7 +8,7 @@ interface useTestProps {
 }
 
 export const useTest = ({
-  duration = 25,
+  duration = 45,
   totalQuestions,
 }: useTestProps = {}) => {
   const [timeRemaining, setTimeRemaining] = useState<number>(0);

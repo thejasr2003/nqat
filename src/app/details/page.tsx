@@ -297,7 +297,7 @@ export default function DetailsPage() {
                     name="passoutBatch"
                     value={formData.passoutBatch}
                     onChange={handleChange}
-                    placeholder="Enter passout year (e.g., 2025)"
+                    placeholder="Enter passout year (e.g., 2026)"
                     className={`h-9 text-sm ${errors.passoutBatch ? "border-red-500 focus-visible:ring-red-500" : ""}`}
                     aria-invalid={!!errors.passoutBatch}
                     aria-describedby={errors.passoutBatch ? "passoutBatch-error" : undefined}

@@ -29,7 +29,8 @@ export async function POST(req: NextRequest) {
     });
   } catch (error: any) {
     console.error("Candidate creation error:", error);
-    
+
+    // Handle unique constraint violations (Prisma)
     if (error.code === "P2002") {
       const field = error.meta?.target?.[0];
       
@@ -51,6 +52,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Validation errors from Zod
     if (error.name === "ZodError") {
       return NextResponse.json(
         { error: "Validation failed", details: error.errors },
@@ -58,9 +60,27 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    return NextResponse.json(
-      { error: error.message || "Failed to create candidate" },
-      { status: 400 }
-    );
+    const msg = String(error?.message || "Unknown error");
+
+    // Detect Prisma / DB connectivity errors reported by Turbopack/runtime
+    const isDbDown = /cannot fetch data from service|fetch failed|ECONNREFUSED|Turbopack|prisma/i.test(msg);
+
+    // User-friendly messages
+    if (isDbDown) {
+      const userMessage = "Check Your Network. Please try again .";
+      const payload: any = { error: userMessage };
+
+      // Include internal error only in non-production for diagnostics
+      if (process.env.NODE_ENV !== "production") payload.internal = msg;
+
+      return NextResponse.json(payload, { status: 502 });
+    }
+
+    // Fallback: unknown error
+    const userMessage = "Failed to create candidate. Please try again.";
+    const payload: any = { error: userMessage };
+    if (process.env.NODE_ENV !== "production") payload.internal = msg;
+
+    return NextResponse.json(payload, { status: 500 });
   }
 }
