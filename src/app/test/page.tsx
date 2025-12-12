@@ -299,7 +299,7 @@ function TestContent() {
             </div>
 
             {/* Question Text */}
-            <h2 className="mb-5 text-base font-semibold leading-relaxed text-slate-900 sm:text-lg break-words">
+            <h2 className="mb-5 text-base font-semibold leading-relaxed text-slate-900 sm:text-lg break-words whitespace-pre-wrap">
               {currentQuestion.question}
             </h2>
 
