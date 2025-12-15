@@ -154,11 +154,11 @@ export default function Home() {
                   {/* Assessment Stats */}
                   <div className="grid grid-cols-3 gap-3">
                     <div className="rounded-lg bg-blue-500/30 backdrop-blur-sm border border-blue-300/30 p-4 text-center">
-                      <p className="text-3xl font-bold">25</p>
+                      <p className="text-3xl font-bold">50</p>
                       <p className="text-xs text-blue-100 mt-1">Questions</p>
                     </div>
                     <div className="rounded-lg bg-blue-500/30 backdrop-blur-sm border border-blue-300/30 p-4 text-center">
-                      <p className="text-3xl font-bold">25min</p>
+                      <p className="text-3xl font-bold">45min</p>
                       <p className="text-xs text-blue-100 mt-1">Duration</p>
                     </div>
                     <div className="rounded-lg bg-blue-500/30 backdrop-blur-sm border border-blue-300/30 p-4 text-center">
@@ -375,8 +375,8 @@ export default function Home() {
         
         <div className="space-y-3">
           {[
-            { title: '25 MCQ Questions', desc: 'Carefully curated by WizzyBox QA professionals' },
-            { title: '25 Minutes Timer', desc: 'Real-time countdown with automatic submission' },
+            { title: '2 MCQ Questions', desc: 'Carefully curated by WizzyBox QA professionals' },
+            { title: '45 Minutes Timer', desc: 'Real-time countdown with automatic submission' },
             { title: 'Instant Results', desc: 'Get your score immediately after completion' },
             { title: 'Performance Analysis', desc: 'Detailed breakdown of strengths and improvements' },
             { title: 'Industry Standard', desc: 'Questions aligned with current industry practices' },
@@ -412,7 +412,7 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
               { step: '01', title: 'Register', desc: 'Fill in your basic details to get started', icon: '✍️' },
-              { step: '02', title: 'Take Test', desc: 'Answer 25 questions in 25 minutes', icon: '💻' },
+              { step: '02', title: 'Take Test', desc: 'Answer 50 questions in 45 minutes', icon: '💻' },
               { step: '03', title: 'Get Results', desc: 'View your score and performance report instantly', icon: '🎉' }
             ].map((item, idx) => (
               <div key={idx} className="relative text-center">
