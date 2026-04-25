@@ -40,9 +40,9 @@ export default function Home() {
           </Link> */}
           
           <Link href="/details">
-            <Button className="bg-blue-600 hover:bg-blue-700 shadow-sm">
+            {/* <Button className="bg-blue-600 hover:bg-blue-700 shadow-sm">
               Start Test
-            </Button>
+            </Button> */}
           </Link>
         </div>
       </div>
@@ -375,7 +375,7 @@ export default function Home() {
         
         <div className="space-y-3">
           {[
-            { title: '2 MCQ Questions', desc: 'Carefully curated by WizzyBox QA professionals' },
+            { title: '50 MCQ Questions', desc: 'Carefully curated by WizzyBox QA professionals' },
             { title: '45 Minutes Timer', desc: 'Real-time countdown with automatic submission' },
             { title: 'Instant Results', desc: 'Get your score immediately after completion' },
             { title: 'Performance Analysis', desc: 'Detailed breakdown of strengths and improvements' },
