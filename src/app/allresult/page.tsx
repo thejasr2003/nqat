@@ -32,7 +32,12 @@ export default function AllResultsPage() {
         const response = await fetch("/api/results/all");
         if (!response.ok) throw new Error("Failed to fetch results");
         const data = await response.json();
-        setResults(data);
+        // Update status based on score >= 40
+        const updatedResults = data.map((result: CandidateResult) => ({
+          ...result,
+          status: result.score >= 40 ? "selected" : "rejected",
+        }));
+        setResults(updatedResults);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load results");
       } finally {
@@ -148,11 +153,11 @@ export default function AllResultsPage() {
             <p className="text-3xl font-bold text-slate-900">{results.length}</p>
           </div>
           <div className="rounded-lg border border-green-200 bg-green-50 p-6 shadow-sm">
-            <p className="text-sm text-green-600 font-semibold mb-2">✓ Selected (≥30)</p>
+            <p className="text-sm text-green-600 font-semibold mb-2">✓ Selected (≥50)</p>
             <p className="text-3xl font-bold text-green-700">{selectedCount}</p>
           </div>
           <div className="rounded-lg border border-red-200 bg-red-50 p-6 shadow-sm">
-            <p className="text-sm text-red-600 font-semibold mb-2">✗ Rejected (score below 30)</p>
+            <p className="text-sm text-red-600 font-semibold mb-2">✗ Rejected (score below 50)</p>
             <p className="text-3xl font-bold text-red-700">{rejectedCount}</p>
           </div>
         </div>
@@ -192,25 +197,128 @@ export default function AllResultsPage() {
         </div>
 
         {/* Export Section */}
-        {filterStatus === "selected" && selectedCount > 0 && (
-          <div className="mb-6 p-4 rounded-lg bg-green-50 border border-green-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-green-900 mb-1">Export Selected Candidates</h3>
-                <p className="text-sm text-green-700">{selectedCount} candidate(s) ready to export</p>
-              </div>
+        <div className="mb-6 p-4 rounded-lg bg-blue-50 border border-blue-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-blue-900 mb-1">Export Candidates</h3>
+              <p className="text-sm text-blue-700">
+                {filterStatus === "all" 
+                  ? `${results.length} total candidate(s)` 
+                  : `${filteredResults.length} ${filterStatus} candidate(s)`} ready to export
+              </p>
+            </div>
+            <div className="flex gap-3">
               <button
-                onClick={exportToExcel}
-                className="px-6 py-2 rounded-lg bg-green-600 text-white font-semibold hover:bg-green-700 transition-colors flex items-center gap-2"
+                onClick={() => {
+                  const dataToExport = filteredResults.length > 0 ? filteredResults : results;
+                  const headers = [
+                    "Candidate Name",
+                    "USN",
+                    "Email",
+                    "Phone",
+                    "College",
+                    "Branch",
+                    "Score",
+                    "Total",
+                    "Percentage",
+                    "Status",
+                    "Submitted Date",
+                  ];
+
+                  const csvContent = [
+                    headers.join(","),
+                    ...dataToExport.map((result) =>
+                      [
+                        `"${result.candidateName}"`,
+                        `"${result.usn}"`,
+                        `"${result.email}"`,
+                        `"${result.phone}"`,
+                        `"${result.collegeName}"`,
+                        `"${result.branch}"`,
+                        result.score,
+                        result.total,
+                        result.percentage,
+                        result.status.toUpperCase(),
+                        new Date(result.submittedAt).toLocaleString(),
+                      ].join(",")
+                    ),
+                  ].join("\n");
+
+                  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+                  const link = document.createElement("a");
+                  const url = URL.createObjectURL(blob);
+                  const fileName = `candidates-${filterStatus}-${new Date().toISOString().split("T")[0]}.csv`;
+                  link.setAttribute("href", url);
+                  link.setAttribute("download", fileName);
+                  link.style.visibility = "hidden";
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                }}
+                className="px-6 py-2 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors flex items-center gap-2"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 16v-4m0 0V8m0 4h4m-4 0H8m4-8a8 8 0 100 16 8 8 0 000-16z" />
                 </svg>
-                Export to CSV
+                Export Filtered
+              </button>
+              <button
+                onClick={() => {
+                  const dataToExport = results;
+                  const headers = [
+                    "Candidate Name",
+                    "USN",
+                    "Email",
+                    "Phone",
+                    "College",
+                    "Branch",
+                    "Score",
+                    "Total",
+                    "Percentage",
+                    "Status",
+                    "Submitted Date",
+                  ];
+
+                  const csvContent = [
+                    headers.join(","),
+                    ...dataToExport.map((result) =>
+                      [
+                        `"${result.candidateName}"`,
+                        `"${result.usn}"`,
+                        `"${result.email}"`,
+                        `"${result.phone}"`,
+                        `"${result.collegeName}"`,
+                        `"${result.branch}"`,
+                        result.score,
+                        result.total,
+                        result.percentage,
+                        result.status.toUpperCase(),
+                        new Date(result.submittedAt).toLocaleString(),
+                      ].join(",")
+                    ),
+                  ].join("\n");
+
+                  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+                  const link = document.createElement("a");
+                  const url = URL.createObjectURL(blob);
+                  const fileName = `all-candidates-${new Date().toISOString().split("T")[0]}.csv`;
+                  link.setAttribute("href", url);
+                  link.setAttribute("download", fileName);
+                  link.style.visibility = "hidden";
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                }}
+                className="px-6 py-2 rounded-lg bg-green-600 text-white font-semibold hover:bg-green-700 transition-colors flex items-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Export All
               </button>
             </div>
           </div>
-        )}
+        </div>
 
         {/* Results Table */}
         <div className="rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden">
@@ -281,8 +389,8 @@ export default function AllResultsPage() {
         {/* Export Info */}
         <div className="mt-8 p-4 rounded-lg bg-blue-50 border border-blue-200">
           <p className="text-sm text-blue-700">
-            <strong>Note:</strong> Candidates with a score of 30 or above are marked as "Selected". 
-            Candidates below 30 are marked as "Rejected".
+            <strong>Note:</strong> Candidates with a score of 40 or above are marked as "Selected". 
+            Candidates below 40 are marked as "Rejected".
           </p>
         </div>
       </div>
