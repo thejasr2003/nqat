@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { TabSwitchWarning } from "@/components/TabSwitchWarning";
+import { SubmitConfirmation } from "@/components/SubmitConfirmation";
 import { useTest } from "@/hooks/useTest";
 
 interface Question {
@@ -29,6 +30,7 @@ function TestContent() {
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [tabSwitchCount, setTabSwitchCount] = useState(0);
   const [showWarning, setShowWarning] = useState(false);
+  const [showSubmitConfirmation, setShowSubmitConfirmation] = useState(false);
 
   // Fetch questions once on mount
   useEffect(() => {
@@ -78,6 +80,23 @@ function TestContent() {
       setError(err.message || "Submission failed");
       setSubmitting(false);
     }
+  };
+
+  // Handle submit button click - show confirmation
+  const handleSubmitClick = () => {
+    setShowSubmitConfirmation(true);
+  };
+
+  // Handle confirmation - proceed with submission
+  const handleConfirmSubmit = () => {
+    setShowSubmitConfirmation(false);
+    setHasSubmitted(true);
+    handleSubmit();
+  };
+
+  // Handle cancel - close confirmation
+  const handleCancelSubmit = () => {
+    setShowSubmitConfirmation(false);
   };
 
   // Use dynamic timer (1 minute per question)
@@ -364,7 +383,7 @@ function TestContent() {
 
           {currentIndex === questions.length - 1 ? (
             <Button
-              onClick={handleSubmit}
+              onClick={handleSubmitClick}
               disabled={submitting}
               className="flex-1 h-10 bg-blue-600 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
             >
@@ -402,6 +421,14 @@ function TestContent() {
         isVisible={showWarning}
         violationCount={tabSwitchCount}
         onClose={() => setShowWarning(false)}
+      />
+
+      {/* Submit Confirmation Modal */}
+      <SubmitConfirmation
+        isVisible={showSubmitConfirmation}
+        onConfirm={handleConfirmSubmit}
+        onCancel={handleCancelSubmit}
+        isSubmitting={submitting}
       />
     </div>
   );
