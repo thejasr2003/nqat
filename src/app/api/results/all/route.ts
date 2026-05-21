@@ -24,6 +24,18 @@ export async function GET() {
                 id: true,
               },
             },
+            numericQuestions: {
+              select: {
+                id: true,
+                marks: true,
+              },
+            },
+            wordBlankQuestions: {
+              select: {
+                id: true,
+                marks: true,
+              },
+            },
           },
         },
       },
@@ -33,11 +45,10 @@ export async function GET() {
     });
 
     const results = submissions.map((submission) => {
-      // Calculate total marks based on actual number of questions
-      // Each question = 2 marks
-      const questionCount = submission.test.questions.length;
-      const totalMarks = questionCount * 2;
-      
+      const totalMarks = submission.test.questions.length * 2 +
+        submission.test.numericQuestions.reduce((sum, question) => sum + question.marks, 0) +
+        submission.test.wordBlankQuestions.reduce((sum, question) => sum + question.marks, 0);
+
       return {
         id: submission.id,
         candidateId: submission.candidateId,
@@ -49,7 +60,7 @@ export async function GET() {
         branch: submission.candidate.branch,
         score: submission.score,
         total: totalMarks,
-        percentage: Math.round((submission.score / totalMarks) * 100),
+        percentage: totalMarks > 0 ? Math.round((submission.score / totalMarks) * 100) : 0,
         submittedAt: submission.submittedAt,
         status: submission.score >= 30 ? "selected" : "rejected",
       };

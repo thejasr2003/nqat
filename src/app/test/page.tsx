@@ -1,20 +1,41 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import React, { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { TabSwitchWarning } from "@/components/TabSwitchWarning";
 import { SubmitConfirmation } from "@/components/SubmitConfirmation";
 import { useTest } from "@/hooks/useTest";
 
-interface Question {
+type QuestionType = "MCQ" | "NUMERIC" | "WORD_BLANK";
+
+interface BaseQuestion {
   id: string;
+  type: QuestionType;
   question: string;
-  option1: string;
-  option2: string;
-  option3: string;
-  option4: string;
+  marks: number;
 }
+
+interface MCQQuestion extends BaseQuestion {
+  type: "MCQ";
+  options: {
+    option1: string;
+    option2: string;
+    option3: string;
+    option4: string;
+  };
+}
+
+interface NumericQuestion extends BaseQuestion {
+  type: "NUMERIC";
+}
+
+interface WordBlankQuestion extends BaseQuestion {
+  type: "WORD_BLANK";
+}
+
+type Question = MCQQuestion | NumericQuestion | WordBlankQuestion;
+type AnswerRecord = Record<string, string | string[]>;
 
 function TestContent() {
   const router = useRouter();
@@ -24,13 +45,45 @@ function TestContent() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [answers, setAnswers] = useState<AnswerRecord>({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string>("");
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [tabSwitchCount, setTabSwitchCount] = useState(0);
   const [showWarning, setShowWarning] = useState(false);
   const [showSubmitConfirmation, setShowSubmitConfirmation] = useState(false);
+
+  const getBlankCount = (text: string) => (text.match(/_{2,}/g) || []).length;
+
+  const isBlankComplete = (value: unknown, blankCount: number) => {
+    return (
+      Array.isArray(value) &&
+      value.length === blankCount &&
+      value.every((item) => item?.toString().trim().length > 0)
+    );
+  };
+
+  const isQuestionAnswered = (question: Question) => {
+    const answer = answers[question.id];
+    if (question.type === "WORD_BLANK") {
+      const blankCount = getBlankCount(question.question);
+      return isBlankComplete(answer, blankCount);
+    }
+    return typeof answer === "string" && answer.trim().length > 0;
+  };
+
+  const validateBeforeSubmit = () => {
+    for (const question of questions) {
+      if (question.type !== "WORD_BLANK") continue;
+      const answer = answers[question.id];
+      const blankCount = getBlankCount(question.question);
+      if (Array.isArray(answer) && !isBlankComplete(answer, blankCount)) {
+        setError("Please fill every blank before submitting this question.");
+        return false;
+      }
+    }
+    return true;
+  };
 
   // Fetch questions once on mount
   useEffect(() => {
@@ -53,8 +106,15 @@ function TestContent() {
   // Define handleSubmit first so it's available for other hooks
   const handleSubmit = async () => {
     if (submitting || hasSubmitted) return;
+    if (!validateBeforeSubmit()) return;
+
+    if (!candidateId) {
+      setError("Candidate ID is required to submit the test.");
+      return;
+    }
 
     setSubmitting(true);
+    setError("");
     try {
       const response = await fetch("/api/test/submit", {
         method: "POST",
@@ -73,7 +133,6 @@ function TestContent() {
         return;
       }
 
-      const result = await response.json();
       localStorage.removeItem("testEndTime");
       router.push(`/result`);
     } catch (err: any) {
@@ -207,39 +266,28 @@ function TestContent() {
     }
   };
 
-  const answeredCount = Object.keys(answers).length;
+  const answeredCount = questions.filter(isQuestionAnswered).length;
 
   return (
-    <div className="min-h-screen bg-slate-50 overflow-x-hidden">
-      {/* Compact Header */}
-      <header className="sticky top-0 z-50 border-b border-slate-200 bg-white shadow-sm w-full">
-        <div className="mx-auto w-full max-w-5xl px-4 py-3">
+    <div className="min-h-screen bg-white overflow-x-hidden">
+      {/* Header */}
+      <header className="sticky top-0 z-50 border-b border-slate-200 bg-white w-full">
+        <div className="mx-auto w-full max-w-4xl px-6 py-4">
           <div className="flex items-center justify-between">
-            {/* Left: Title & Progress */}
-            <div className="flex items-center gap-4">
-              <div>
-                <h1 className="text-sm font-semibold text-slate-900">
-                  Online Assessment
-                </h1>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Question {currentIndex + 1} of {questions.length}
-                </p>
-              </div>
-              <div className="hidden sm:flex items-center gap-2 text-xs text-slate-600">
-                <span className="font-medium">{answeredCount}</span>
-                <span className="text-slate-400">/</span>
-                <span className="text-slate-400">{questions.length} answered</span>
-              </div>
+            <div>
+              <h1 className="text-lg font-semibold text-slate-900">
+                Assessment
+              </h1>
+              <p className="text-xs text-slate-500 mt-1">
+                Question {currentIndex + 1} of {questions.length} • {answeredCount} answered
+              </p>
             </div>
 
-            {/* Right: Timer */}
             <div className="text-right">
-              <p className="text-[10px] font-medium uppercase tracking-wider text-slate-400">
-                Time Left
-              </p>
+              <p className="text-xs text-slate-500 mb-1">Time Remaining</p>
               <div
-                className={`mt-0.5 text-xl font-mono font-bold tabular-nums ${
-                  timeRemaining < 300 ? "text-red-600" : "text-blue-600"
+                className={`text-2xl font-semibold font-mono ${
+                  timeRemaining < 300 ? "text-red-600" : "text-slate-900"
                 }`}
               >
                 {formattedTime}
@@ -248,11 +296,11 @@ function TestContent() {
           </div>
         </div>
 
-        {/* Slim Progress Bar */}
-        <div className="h-0.5 w-full bg-slate-100">
+        {/* Progress Bar */}
+        <div className="h-1 w-full bg-slate-200">
           <div
-            className={`h-0.5 transition-all duration-300 ${
-              timeRemaining < 300 ? "bg-red-500" : "bg-blue-500"
+            className={`h-1 transition-all duration-300 ${
+              timeRemaining < 300 ? "bg-red-500" : "bg-slate-400"
             }`}
             style={{
               width: `${
@@ -262,26 +310,26 @@ function TestContent() {
           />
         </div>
 
-        {/* Question Navigator Pills - Scrollable */}
-        <div className="border-t border-slate-100 bg-slate-50/50 w-full">
-          <div className="mx-auto w-full max-w-5xl px-4 py-2 overflow-x-auto scrollbar-hide">
-            <div className="flex gap-1.5 min-w-max">
+        {/* Question Navigator */}
+        <div className="bg-slate-50 border-t border-slate-200 w-full">
+          <div className="mx-auto w-full max-w-4xl px-6 py-3 overflow-x-auto">
+            <div className="flex gap-2 min-w-max">
               {questions.map((q, idx) => {
                 const isActive = idx === currentIndex;
-                const isAnswered = !!answers[q.id];
+                const isAnswered = isQuestionAnswered(q);
 
                 return (
                   <button
                     key={q.id}
                     onClick={() => setCurrentIndex(idx)}
-                    className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md text-xs font-semibold transition-all ${
+                    className={`flex h-8 w-8 items-center justify-center text-xs font-medium transition-all rounded border ${
                       isActive
-                        ? "bg-blue-600 text-white shadow-sm ring-2 ring-blue-600 ring-offset-1"
+                        ? "bg-slate-900 text-white border-slate-900"
                         : isAnswered
-                        ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
-                        : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                        ? "bg-slate-100 text-slate-900 border-slate-200"
+                        : "bg-white text-slate-600 border-slate-300 hover:border-slate-400"
                     }`}
-                    title={`Question ${idx + 1}${isAnswered ? " (Answered)" : ""}`}
+                    title={`Question ${idx + 1}`}
                   >
                     {idx + 1}
                   </button>
@@ -292,126 +340,189 @@ function TestContent() {
         </div>
       </header>
 
-      {/* Main Content Area */}
-      <main className="mx-auto w-full max-w-3xl px-4 py-5">
+      {/* Main Content */}
+      <main className="mx-auto w-full max-w-4xl px-6 py-8">
         {error && (
-          <div className="mb-4 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm">
-            <span className="text-lg">⚠️</span>
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-red-900">Error</p>
-              <p className="mt-0.5 text-red-700 break-words">{error}</p>
-            </div>
+          <div className="mb-6 p-4 rounded border border-red-300 bg-red-50 text-red-800 text-sm">
+            {error}
           </div>
         )}
 
-        {/* Question Card */}
+        {/* Question Container */}
         {currentQuestion && (
-          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm w-full">
-            {/* Question Header */}
-            <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
-              <span className="inline-flex items-center rounded-md bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
-                Q{currentIndex + 1}
+          <div className="mb-8">
+            {/* Question Number and Status */}
+            <div className="mb-4 flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                Question {currentIndex + 1}
               </span>
               <span className="text-xs text-slate-400">
-                {answers[currentQuestion.id] ? "✓ Answered" : "Not answered"}
+                {isQuestionAnswered(currentQuestion) ? "Answered" : "Not answered"}
               </span>
             </div>
 
-            {/* Question Text */}
-            <h2 className="mb-5 text-base font-semibold leading-relaxed text-slate-900 sm:text-lg break-words whitespace-pre-wrap">
-              {currentQuestion.question}
-            </h2>
+            {/* Question Text - Only show for non-word-blank questions */}
+            {currentQuestion.type !== "WORD_BLANK" && (
+              <h2 className="mb-6 text-xl font-semibold text-slate-900 leading-relaxed break-words whitespace-pre-wrap">
+                {currentQuestion.question}
+              </h2>
+            )}
 
-            {/* Options */}
-            <div className="space-y-2">
-              {["option1", "option2", "option3", "option4"].map((optionKey, idx) => {
-                const option = optionKey as keyof Question;
-                const selected = answers[currentQuestion.id] === optionKey;
+            {/* Answer Section */}
+            <div className="space-y-4">
+              {/* MCQ */}
+              {currentQuestion.type === "MCQ" && (
+                <div className="space-y-3">
+                  {Object.entries(currentQuestion.options).map(([key, text], idx) => {
+                    const selected = answers[currentQuestion.id] === key;
+                    return (
+                      <label
+                        key={key}
+                        className={`flex items-start gap-4 p-4 border rounded cursor-pointer transition-all ${
+                          selected
+                            ? "border-slate-400 bg-slate-50"
+                            : "border-slate-200 bg-white hover:border-slate-300"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name={currentQuestion.id}
+                          value={key}
+                          checked={selected}
+                          onChange={() =>
+                            setAnswers((prev) => ({
+                              ...prev,
+                              [currentQuestion.id]: key,
+                            }))
+                          }
+                          className="mt-0.5 h-5 w-5 cursor-pointer accent-slate-900"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-sm font-medium text-slate-500">
+                              {String.fromCharCode(65 + idx)}.
+                            </span>
+                            <span className="text-sm text-slate-900 leading-relaxed break-words">
+                              {text}
+                            </span>
+                          </div>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
 
-                return (
-                  <label
-                    key={optionKey}
-                    className={`group flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-all w-full ${
-                      selected
-                        ? "border-blue-500 bg-blue-50 shadow-sm"
-                        : "border-slate-200 bg-white hover:border-blue-200 hover:bg-slate-50"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name={currentQuestion.id}
-                      value={optionKey}
-                      checked={selected}
-                      onChange={() => handleAnswerSelect(optionKey)}
-                      className="mt-0.5 h-4 w-4 flex-shrink-0 cursor-pointer accent-blue-600"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-baseline gap-2">
-                        <span
-                          className={`text-xs font-semibold flex-shrink-0 ${
-                            selected ? "text-blue-700" : "text-slate-500"
-                          }`}
-                        >
-                          {String.fromCharCode(65 + idx)}.
-                        </span>
-                        <span
-                          className={`text-sm leading-relaxed break-words ${
-                            selected ? "text-slate-900 font-medium" : "text-slate-700"
-                          }`}
-                        >
-                          {currentQuestion[option]}
-                        </span>
-                      </div>
-                    </div>
+              {/* Numeric */}
+              {currentQuestion.type === "NUMERIC" && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Enter your answer
                   </label>
-                );
-              })}
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    value={typeof answers[currentQuestion.id] === "string" ? (answers[currentQuestion.id] as string) : ""}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      const normalized = value.replace(/[^0-9.-]/g, "");
+                      setAnswers((prev) => ({
+                        ...prev,
+                        [currentQuestion.id]: normalized,
+                      }));
+                    }}
+                    onKeyDown={(event) => {
+                      if (["e", "E", "+"].includes(event.key)) {
+                        event.preventDefault();
+                      }
+                    }}
+                    className="w-full px-0 py-2 text-base text-slate-900 border-0 border-b-2 border-slate-200 focus:border-b-slate-400 focus:outline-none transition-colors bg-transparent"
+                    placeholder="0"
+                  />
+                </div>
+              )}
+
+              {/* Word Blank */}
+              {currentQuestion.type === "WORD_BLANK" && (
+                <div>
+                  {(() => {
+                    const segments = currentQuestion.question.split(/_{2,}/);
+                    const blankCount = Math.max(segments.length - 1, 0);
+                    const blankValues = Array.isArray(answers[currentQuestion.id])
+                      ? (answers[currentQuestion.id] as string[])
+                      : Array(blankCount).fill("");
+
+                    return (
+                      <div className="space-y-4">
+                        <p className="text-slate-900 leading-relaxed text-base">
+                          {segments.map((segment, idx) => (
+                            <span key={idx}>
+                              <span>{segment}</span>
+                              {idx < blankCount && (
+                                <input
+                                  type="text"
+                                  value={blankValues[idx] ?? ""}
+                                  onChange={(event) => {
+                                    const nextValues = Array.from({ length: blankCount }, (_, i) => blankValues[i] ?? "");
+                                    nextValues[idx] = event.target.value;
+                                    setAnswers((prev) => ({
+                                      ...prev,
+                                      [currentQuestion.id]: nextValues,
+                                    }));
+                                  }}
+                                  className="inline-block mx-1 px-2 py-1 text-base text-slate-900 border-0 border-b-2 border-slate-300 focus:border-b-slate-900 focus:outline-none transition-colors bg-transparent w-32"
+                                  placeholder=""
+                                />
+                              )}
+                            </span>
+                          ))}
+                        </p>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
             </div>
           </div>
         )}
 
-        {/* Navigation Buttons */}
-        <div className="mt-4 flex gap-2 w-full">
+        {/* Navigation */}
+        <div className="flex gap-3 mt-8">
           <Button
             onClick={handlePrev}
             disabled={currentIndex === 0}
             variant="outline"
-            className="flex-1 h-10 text-sm font-medium disabled:opacity-50"
+            className="flex-1 h-10 text-sm font-medium disabled:opacity-50 border-slate-300 text-slate-900 hover:bg-slate-50"
           >
-            ← Previous
+            Previous
           </Button>
 
           {currentIndex === questions.length - 1 ? (
             <Button
               onClick={handleSubmitClick}
               disabled={submitting}
-              className="flex-1 h-10 bg-blue-600 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+              className="flex-1 h-10 text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-50"
             >
-              {submitting ? "Submitting..." : "Submit Test"}
+              {submitting ? "Submitting..." : "Submit"}
             </Button>
           ) : (
             <Button
               onClick={handleNext}
-              className="flex-1 h-10 bg-blue-600 text-sm font-semibold text-white hover:bg-blue-700"
+              className="flex-1 h-10 text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800"
             >
-              Next →
+              Next
             </Button>
           )}
         </div>
 
-        {/* Footer Hint */}
-        <p className="mt-4 text-center text-xs text-slate-400">
-          Review all questions before final submission
-        </p>
-
-        {/* Tab Switch Violation Counter */}
+        {/* Violation Counter */}
         {tabSwitchCount > 0 && (
-          <div className={`mt-4 p-3 rounded-lg border-l-4 font-semibold text-sm ${
-            tabSwitchCount === 1 ? "bg-yellow-50 border-l-yellow-500 text-yellow-800" :
+          <div className={`mt-6 p-3 text-sm rounded border-l-4 ${
+            tabSwitchCount === 1 ? "bg-amber-50 border-l-amber-500 text-amber-800" :
             tabSwitchCount === 2 ? "bg-orange-50 border-l-orange-500 text-orange-800" :
             "bg-red-50 border-l-red-600 text-red-800"
           }`}>
-            Tab Switch Violations: {tabSwitchCount} / 3
+            <span className="font-medium">Tab Switch Violation: {tabSwitchCount}/3</span>
           </div>
         )}
       </main>

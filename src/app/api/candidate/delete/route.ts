@@ -2,30 +2,38 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 /**
- * DELETE /api/candidate/delete?id={candidateId}
+ * DELETE /api/candidate/delete?id={candidateId|usn}
  * Deletes a candidate and all their submissions
+ * Can search by candidateId or USN
  * Questions are NOT deleted
  */
 export async function DELETE(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const candidateId = searchParams.get("id");
+    const identifier = searchParams.get("id");
 
-    if (!candidateId) {
+    if (!identifier) {
       return NextResponse.json(
-        { error: "Candidate ID is required" },
+        { error: "Candidate ID or USN is required" },
         { status: 400 }
       );
     }
 
-    // Check if candidate exists
-    const candidate = await prisma.candidate.findUnique({
-      where: { id: candidateId },
+    // Try to find candidate by ID first, then by USN
+    let candidate = await prisma.candidate.findUnique({
+      where: { id: identifier },
     });
 
     if (!candidate) {
+      // Try finding by USN
+      candidate = await prisma.candidate.findUnique({
+        where: { usn: identifier },
+      });
+    }
+
+    if (!candidate) {
       return NextResponse.json(
-        { error: "Candidate not found" },
+        { error: "Candidate not found with provided ID or USN" },
         { status: 404 }
       );
     }
@@ -33,14 +41,14 @@ export async function DELETE(request: NextRequest) {
     // Delete all submissions for this candidate
     const deletedSubmissions = await prisma.submission.deleteMany({
       where: {
-        candidateId: candidateId,
+        candidateId: candidate.id,
       },
     });
 
     // Delete the candidate
     const deletedCandidate = await prisma.candidate.delete({
       where: {
-        id: candidateId,
+        id: candidate.id,
       },
     });
 
@@ -50,6 +58,7 @@ export async function DELETE(request: NextRequest) {
         id: deletedCandidate.id,
         name: deletedCandidate.name,
         email: deletedCandidate.email,
+        usn: deletedCandidate.usn,
       },
       submissionsDeleted: deletedSubmissions.count,
     });

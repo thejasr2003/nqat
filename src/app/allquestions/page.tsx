@@ -3,16 +3,34 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 
-interface Question {
+type QuestionType = "MCQ" | "NUMERIC" | "WORD_BLANK";
+
+interface BaseQuestion {
   id: string;
+  type: QuestionType;
   question: string;
   questionImage?: string;
-  option1: string;
-  option2: string;
-  option3: string;
-  option4: string;
-  answer?: string;
 }
+
+interface MCQQuestion extends BaseQuestion {
+  type: "MCQ";
+  options: {
+    option1: string;
+    option2: string;
+    option3: string;
+    option4: string;
+  };
+}
+
+interface NumericQuestion extends BaseQuestion {
+  type: "NUMERIC";
+}
+
+interface WordBlankQuestion extends BaseQuestion {
+  type: "WORD_BLANK";
+}
+
+type Question = MCQQuestion | NumericQuestion | WordBlankQuestion;
 
 export default function AllQuestionsPage() {
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -118,31 +136,39 @@ export default function AllQuestionsPage() {
                       </div>
                     )}
 
-                    {/* Options */}
-                    <div className="mb-5 space-y-3">
-                      <p className="text-sm font-medium text-gray-700">Options:</p>
-                      {[
-                        { key: "option1", label: "A", value: question.option1 },
-                        { key: "option2", label: "B", value: question.option2 },
-                        { key: "option3", label: "C", value: question.option3 },
-                        { key: "option4", label: "D", value: question.option4 },
-                      ].map((opt) => (
-                        <div
-                          key={opt.key}
-                          className="rounded-lg border border-gray-200 bg-gray-50 p-3"
-                        >
-                          <p className="text-sm font-semibold text-gray-700">
-                            {opt.label}. {opt.value}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
+                    {question.type === "MCQ" && (
+                      <div className="mb-5 space-y-3">
+                        <p className="text-sm font-medium text-gray-700">Options:</p>
+                        {[
+                          { key: "option1", label: "A", value: question.options.option1 },
+                          { key: "option2", label: "B", value: question.options.option2 },
+                          { key: "option3", label: "C", value: question.options.option3 },
+                          { key: "option4", label: "D", value: question.options.option4 },
+                        ].map((opt) => (
+                          <div
+                            key={opt.key}
+                            className="rounded-lg border border-gray-200 bg-gray-50 p-3"
+                          >
+                            <p className="text-sm font-semibold text-gray-700">
+                              {opt.label}. {opt.value}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
 
-                    {/* Answer */}
-                    {question.answer && (
-                      <div className="rounded-lg bg-green-50 p-3 border border-green-200">
-                        <p className="text-sm text-green-700">
-                          <span className="font-semibold">Correct Answer:</span> {question.answer}
+                    {question.type === "NUMERIC" && (
+                      <div className="mb-5 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                        <p className="text-sm font-medium text-slate-700">Numeric Question</p>
+                        <p className="mt-2 text-sm text-slate-600">Answer is a single numeric value.</p>
+                      </div>
+                    )}
+
+                    {question.type === "WORD_BLANK" && (
+                      <div className="mb-5 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                        <p className="text-sm font-medium text-slate-700">Word Blank Question</p>
+                        <p className="mt-2 text-sm text-slate-600">
+                          This question contains {Math.max((question.question.match(/_{2,}/g) || []).length, 0)} blank(s).
                         </p>
                       </div>
                     )}
@@ -162,23 +188,27 @@ export default function AllQuestionsPage() {
                   [
                     "Question No",
                     "Question",
+                    "Type",
                     "Option A",
                     "Option B",
                     "Option C",
                     "Option D",
-                    "Answer",
                   ].join(","),
-                  ...questions.map((q, idx) =>
-                    [
+                  ...questions.map((q, idx) => {
+                    const optionA = q.type === "MCQ" ? q.options.option1 : "";
+                    const optionB = q.type === "MCQ" ? q.options.option2 : "";
+                    const optionC = q.type === "MCQ" ? q.options.option3 : "";
+                    const optionD = q.type === "MCQ" ? q.options.option4 : "";
+                    return [
                       idx + 1,
                       `"${q.question.replace(/"/g, '""')}"`,
-                      `"${q.option1}"`,
-                      `"${q.option2}"`,
-                      `"${q.option3}"`,
-                      `"${q.option4}"`,
-                      q.answer || "",
-                    ].join(",")
-                  ),
+                      q.type,
+                      `"${optionA}"`,
+                      `"${optionB}"`,
+                      `"${optionC}"`,
+                      `"${optionD}"`,
+                    ].join(",");
+                  }),
                 ].join("\n");
 
                 const blob = new Blob([csvContent], {

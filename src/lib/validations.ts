@@ -32,10 +32,60 @@ export const questionSchema = z.object({
   answer: z.enum(["option1", "option2", "option3", "option4"]),
 });
 
+export const numericQuestionSchema = z.object({
+  questionText: z.string().min(5, "Question is required"),
+  correctAnswer: z.preprocess(
+    (value) => {
+      if (typeof value === "string") {
+        return Number(value.trim());
+      }
+      return value;
+    },
+    z
+      .number()
+      .refine((val) => !Number.isNaN(val), "Correct answer must be a valid number")
+  ),
+  marks: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .default(2),
+});
+
+export const wordBlankQuestionSchema = z
+  .object({
+    paragraph: z
+      .string()
+      .min(5, "Paragraph is required")
+      .refine(
+        (value) => /_{2,}/.test(value),
+        "Paragraph must include at least one blank placeholder with two or more underscores"
+      ),
+    correctAnswers: z
+      .array(z.string().min(1, "Each blank answer is required"))
+      .min(1, "Provide at least one blank answer"),
+    marks: z
+      .number()
+      .int()
+      .positive()
+      .optional()
+      .default(2),
+  })
+  .superRefine((value, ctx) => {
+    const blanks = (value.paragraph.match(/_{2,}/g) || []).length;
+    if (blanks !== value.correctAnswers.length) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Expected ${blanks} answers for the blank placeholders`,
+      });
+    }
+  });
+
 export const testSubmitSchema = z.object({
   candidateId: z.string(),
   testId: z.string(),
-  answers: z.record(z.string(), z.string()),
+  answers: z.record(z.string(), z.union([z.string(), z.array(z.string())])),
 });
 
 export type CandidateInput = z.infer<typeof candidateSchema>;

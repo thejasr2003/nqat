@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { testSubmitSchema } from "@/lib/validations";
+import { evaluateAnswer, fetchTestQuestions } from "@/lib/questionHelpers";
 
 export async function POST(req: NextRequest) {
   try {
@@ -25,38 +26,29 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Fetch all questions for the test
-    const questions = await prisma.question.findMany({
-      where: { testId: validatedData.testId },
-    });
+    const questions = await fetchTestQuestions(validatedData.testId);
 
-    // Calculate score (2 marks per correct answer)
-    let correctAnswers = 0;
+    let score = 0;
     for (const question of questions) {
       const userAnswer = validatedData.answers[question.id];
-      if (userAnswer === question.answer) {
-        correctAnswers++;
-      }
+      score += evaluateAnswer(question, userAnswer);
     }
 
-    // Total marks = number of questions × 2
-    const totalMarks = questions.length * 2;
-    const score = correctAnswers * 2;
+    const totalMarks = questions.reduce((sum, question) => sum + question.marks, 0);
 
-    // Create submission
-    const submission = await prisma.submission.create({
+    await prisma.submission.create({
       data: {
         testId: validatedData.testId,
         candidateId: validatedData.candidateId,
         answers: validatedData.answers,
-        score: score,
+        score,
       },
     });
 
     return NextResponse.json({
-      score: score,
+      score,
       total: totalMarks,
-      percentage: Math.round((score / totalMarks) * 100),
+      percentage: totalMarks > 0 ? Math.round((score / totalMarks) * 100) : 0,
       message: "Test submitted successfully",
     });
   } catch (error: any) {

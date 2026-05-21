@@ -6,7 +6,7 @@ const prisma = new PrismaClient();
  * Delete a candidate and all their submissions/results
  * Questions will NOT be deleted
  * 
- * Usage: node scripts/deleteCandidate.js <candidateId>
+ * Usage: node scripts/deleteCandidate.js <candidateId|usn>
  * Or to delete all candidates: node scripts/deleteCandidate.js all
  */
 
@@ -17,7 +17,8 @@ async function deleteCandidate() {
 
     if (!input) {
       console.log("Usage:");
-      console.log("  Delete single candidate: node scripts/deleteCandidate.js <candidateId>");
+      console.log("  Delete by candidate ID: node scripts/deleteCandidate.js <candidateId>");
+      console.log("  Delete by USN: node scripts/deleteCandidate.js <usn>");
       console.log("  Delete all candidates: node scripts/deleteCandidate.js all");
       process.exit(1);
     }
@@ -37,26 +38,46 @@ async function deleteCandidate() {
       console.log("\n All candidates and their submissions have been deleted successfully!");
       console.log("Questions remain in the database.");
     } else {
-      // Delete specific candidate
-      const candidateId = input;
+      // Try to find candidate by ID first, then by USN
+      let candidate = await prisma.candidate.findUnique({
+        where: {
+          id: input,
+        },
+      });
+
+      if (!candidate) {
+        // Try finding by USN
+        candidate = await prisma.candidate.findUnique({
+          where: {
+            usn: input,
+          },
+        });
+      }
+
+      if (!candidate) {
+        console.error(`❌ Candidate not found with ID or USN: ${input}`);
+        await prisma.$disconnect();
+        process.exit(1);
+      }
 
       // First, delete all submissions for this candidate
       const deletedSubmissions = await prisma.submission.deleteMany({
         where: {
-          candidateId: candidateId,
+          candidateId: candidate.id,
         },
       });
 
-      console.log(`✓ Deleted ${deletedSubmissions.count} submissions for candidate ${candidateId}`);
+      console.log(`✓ Deleted ${deletedSubmissions.count} submissions for candidate ${candidate.id}`);
 
       // Then delete the candidate
       const deletedCandidate = await prisma.candidate.delete({
         where: {
-          id: candidateId,
+          id: candidate.id,
         },
       });
 
       console.log(`✓ Deleted candidate: ${deletedCandidate.name} (${deletedCandidate.email})`);
+      console.log(`✓ USN: ${deletedCandidate.usn}`);
       console.log("\n Candidate and their submissions have been deleted successfully!");
       console.log("Questions remain in the database.");
     }

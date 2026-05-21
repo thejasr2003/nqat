@@ -1,23 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { fetchTestQuestions, getPublicQuestions, shuffleArray } from "@/lib/questionHelpers";
 
 export async function GET(req: NextRequest) {
   try {
-    const questions = await prisma.question.findMany({
-      where: {
-        testId: "main-test",
-      },
-      select: {
-        id: true,
-        question: true,
-        option1: true,
-        option2: true,
-        option3: true,
-        option4: true,
-      },
-    });
-
-    return NextResponse.json(questions);
+    const questions = await fetchTestQuestions("main-test");
+    const publicQuestions = getPublicQuestions(questions);
+    const shuffledQuestions = shuffleArray(publicQuestions);
+    return NextResponse.json(shuffledQuestions);
   } catch (error: any) {
     return NextResponse.json(
       { error: error.message || "Failed to fetch questions" },

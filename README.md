@@ -1,6 +1,6 @@
 # Online MCQ Assessment Platform
 
-A production-grade Next.js 14 application for conducting online Multiple Choice Question (MCQ) assessments. Built with TypeScript, Prisma ORM, PostgreSQL, TailwindCSS, and ShadCN UI components.
+A production-grade Next.js 14 application for conducting online Multiple Choice Question (MCQ) assessments. Built with TypeScript, Prisma ORM, PostgreSQL, TailwindCSS, and ShadCN UI components. 
 
 ## Features
 
@@ -114,7 +114,7 @@ DATABASE_URL="prisma+postgres://accelerate.prisma-data.net/?api_key=..."
 ### 3. Install Dependencies
 
 ```bash
-npm install
+npm install~
 ```
 
 ### 4. Database Setup
@@ -368,7 +368,22 @@ For issues or questions, please contact the development team.
 
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
+
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 
 // to delete the all the Delete all candidates:
 curl http://localhost:3000/api/candidate/delete?action=deleteAll
+or
+node scripts/deleteCandidate.js all
+
+//to see the data of all candidate
+http://localhost:3000/allcandidates
+
+// to see the all the question that are been listed 
+http://localhost:3000/allquestions
+
+//to delete the candidate based on the usn
+node scripts/deleteCandidate.js <usn>
+
+//to see the result of the all the candidates
+/allresult
