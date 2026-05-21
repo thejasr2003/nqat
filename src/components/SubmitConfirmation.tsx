@@ -5,6 +5,8 @@ interface SubmitConfirmationProps {
   onConfirm: () => void;
   onCancel: () => void;
   isSubmitting?: boolean;
+  title?: string;
+  message?: string;
 }
 
 export function SubmitConfirmation({
@@ -12,6 +14,8 @@ export function SubmitConfirmation({
   onConfirm,
   onCancel,
   isSubmitting = false,
+  title = "Submit Test?",
+  message = "Are you sure you want to submit your test? You won't be able to change your answers after submission.",
 }: SubmitConfirmationProps) {
   if (!isVisible) return null;
 

@@ -52,6 +52,7 @@ function TestContent() {
   const [tabSwitchCount, setTabSwitchCount] = useState(0);
   const [showWarning, setShowWarning] = useState(false);
   const [showSubmitConfirmation, setShowSubmitConfirmation] = useState(false);
+  const [confirmationMode, setConfirmationMode] = useState<"submit" | "leave">("submit");
 
   const getBlankCount = (text: string) => (text.match(/_{2,}/g) || []).length;
 
@@ -143,6 +144,7 @@ function TestContent() {
 
   // Handle submit button click - show confirmation
   const handleSubmitClick = () => {
+    setConfirmationMode("submit");
     setShowSubmitConfirmation(true);
   };
 
@@ -156,6 +158,11 @@ function TestContent() {
   // Handle cancel - close confirmation
   const handleCancelSubmit = () => {
     setShowSubmitConfirmation(false);
+  };
+
+  const promptLeaveTest = () => {
+    setConfirmationMode("leave");
+    setShowSubmitConfirmation(true);
   };
 
   // Use dynamic timer (1 minute per question)
@@ -222,6 +229,27 @@ function TestContent() {
       window.removeEventListener("blur", handleWindowBlur);
     };
   }, [submitting, hasSubmitted, handleSubmit]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const currentUrl = window.location.href;
+    window.history.pushState({ isTestPage: true }, "", currentUrl);
+
+    const handlePopState = () => {
+      if (hasSubmitted || submitting) return;
+
+      setConfirmationMode("leave");
+      setShowSubmitConfirmation(true);
+      window.history.pushState({ isTestPage: true }, "", currentUrl);
+    };
+
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [hasSubmitted, submitting]);
 
   if (!candidateId) {
     return (
@@ -540,6 +568,12 @@ function TestContent() {
         onConfirm={handleConfirmSubmit}
         onCancel={handleCancelSubmit}
         isSubmitting={submitting}
+        title={confirmationMode === "leave" ? "Leave Test?" : "Submit Test?"}
+        message={
+          confirmationMode === "leave"
+            ? "You are about to go back to registration. Submit your answers now to save your progress."
+            : "Are you sure you want to submit your test? You won't be able to change your answers after submission."
+        }
       />
     </div>
   );
