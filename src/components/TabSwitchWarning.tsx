@@ -27,8 +27,8 @@ export function TabSwitchWarning({
       : "Your test has been auto-submitted due to tab switching.";
 
   const handleGoToResults = () => {
-    // Redirect to results page (will be filled by parent with actual score/total)
-    router.push("/result?score=0&total=0");
+    // Redirect to results page without leaving the test page in history
+    router.replace("/result?score=0&total=0");
   };
 
   return (

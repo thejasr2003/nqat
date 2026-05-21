@@ -134,7 +134,7 @@ function TestContent() {
       }
 
       localStorage.removeItem("testEndTime");
-      router.push(`/result`);
+      router.replace(`/result`);
     } catch (err: any) {
       setError(err.message || "Submission failed");
       setSubmitting(false);
