@@ -53,6 +53,7 @@ function TestContent() {
   const [showWarning, setShowWarning] = useState(false);
   const [showSubmitConfirmation, setShowSubmitConfirmation] = useState(false);
   const [confirmationMode, setConfirmationMode] = useState<"submit" | "leave">("submit");
+  const [hasExpiredPrompted, setHasExpiredPrompted] = useState(false);
 
   const getBlankCount = (text: string) => (text.match(/_{2,}/g) || []).length;
 
@@ -170,13 +171,20 @@ function TestContent() {
     totalQuestions: questions.length > 0 ? questions.length : undefined,
   });
 
-  // Auto-submit ONLY when timer expires (with guard to prevent multiple submissions)
+  // Show submit confirmation when timer expires instead of auto-submitting
   useEffect(() => {
-    if (isExpired && questions.length > 0 && !submitting && !hasSubmitted) {
-      setHasSubmitted(true);
-      handleSubmit();
+    if (
+      isExpired &&
+      questions.length > 0 &&
+      !submitting &&
+      !hasSubmitted &&
+      !hasExpiredPrompted
+    ) {
+      setConfirmationMode("submit");
+      setShowSubmitConfirmation(true);
+      setHasExpiredPrompted(true);
     }
-  }, [isExpired, submitting, hasSubmitted]);
+  }, [isExpired, submitting, hasSubmitted, hasExpiredPrompted]);
 
   // Tab Switch Detection - Auto-submit on 3rd violation
   useEffect(() => {
@@ -568,10 +576,18 @@ function TestContent() {
         onConfirm={handleConfirmSubmit}
         onCancel={handleCancelSubmit}
         isSubmitting={submitting}
-        title={confirmationMode === "leave" ? "Leave Test?" : "Submit Test?"}
+        title={
+          confirmationMode === "leave"
+            ? "Leave Test?"
+            : isExpired
+            ? "Time's Up!"
+            : "Submit Test?"
+        }
         message={
           confirmationMode === "leave"
             ? "You are about to go back to registration. Submit your answers now to save your progress."
+            : isExpired
+            ? "The timer has expired. Submit your test now to record your responses."
             : "Are you sure you want to submit your test? You won't be able to change your answers after submission."
         }
       />
