@@ -16,7 +16,11 @@ function ResultContent() {
       router.replace("/");
     };
 
-    window.history.pushState({ isResultPage: true }, "", window.location.href);
+    const currentUrl = window.location.href;
+    if (!window.history.state?.isResultPage) {
+      window.history.pushState({ isResultPage: true }, "", currentUrl);
+    }
+
     window.addEventListener("popstate", handlePopState);
 
     return () => {

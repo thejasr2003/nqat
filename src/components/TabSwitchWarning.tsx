@@ -1,74 +1,49 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-
 interface TabSwitchWarningProps {
+  warningCount: number;
   isVisible: boolean;
-  violationCount: number;
   onClose: () => void;
 }
 
 export function TabSwitchWarning({
+  warningCount,
   isVisible,
-  violationCount,
   onClose,
 }: TabSwitchWarningProps) {
-  const router = useRouter();
+  if (!isVisible) {
+    return null;
+  }
 
-  if (!isVisible) return null;
-
-  const isAutoSubmitting = violationCount >= 3;
-  const title = isAutoSubmitting ? "Test Submitted" : "Tab Switch Warning";
-  const message = 
-    violationCount === 1 
-      ? "Switching tabs is not allowed. You have 2 more warnings before auto-submission."
-      : violationCount === 2
-      ? "This is your second violation. One more tab switch will auto-submit your test."
-      : "Your test has been auto-submitted due to tab switching.";
-
-  const handleGoToResults = () => {
-    // Redirect to results page without leaving the test page in history
-    router.replace("/result?score=0&total=0");
-  };
+  const hasReachedTerminationThreshold = warningCount >= 4;
+  const displayedWarningCount = Math.min(warningCount, 3);
+  const title = hasReachedTerminationThreshold ? "Test Terminated" : "Malpractice Warning";
+  const message = hasReachedTerminationThreshold
+    ? "Your test has been terminated because the misconduct limit was reached. Refreshing will not reset this state."
+    : warningCount >= 3
+    ? "This is your final warning. One more tab switch will submit your test."
+    : "Switching tabs, minimizing the browser, or leaving fullscreen is not allowed. Please continue the assessment carefully.";
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className={`w-full max-w-sm rounded-lg border-2 shadow-2xl p-6 ${
-        isAutoSubmitting
-          ? "bg-red-50 border-red-500"
-          : "bg-yellow-50 border-yellow-400"
-      }`}>
-        {/* Icon */}
-        <div className="flex justify-center mb-4">
-          <div className={`text-5xl ${isAutoSubmitting ? "animate-pulse" : ""}`}>
-            {isAutoSubmitting ? "❌" : "⚠️"}
-          </div>
-        </div>
+      <div className="w-full max-w-sm rounded-lg border-2 border-yellow-400 bg-yellow-50 p-6 shadow-2xl">
+        <div className="mb-4 flex justify-center text-5xl">⚠️</div>
 
-        {/* Title */}
-        <h2 className={`text-xl font-bold text-center mb-3 ${
-          isAutoSubmitting ? "text-red-700" : "text-yellow-800"
-        }`}>
+        <h2 className="mb-3 text-center text-xl font-bold text-yellow-800">
           {title}
         </h2>
 
-        {/* Message */}
-        <p className={`text-sm text-center mb-4 leading-relaxed ${
-          isAutoSubmitting ? "text-red-600" : "text-yellow-700"
-        }`}>
+        <p className="mb-4 text-center text-sm leading-relaxed text-yellow-700">
           {message}
         </p>
 
-        {/* Violation Counter */}
-        <div className="flex justify-center gap-2 mb-5">
+        <div className="mb-5 flex justify-center gap-2">
           {[1, 2, 3].map((num) => (
             <div
               key={num}
-              className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs ${
-                num < violationCount
+              className={`flex h-10 w-10 items-center justify-center rounded-full text-xs font-bold ${
+                num <= displayedWarningCount
                   ? "bg-red-500 text-white"
-                  : num === violationCount
-                  ? "bg-yellow-500 text-white animate-pulse"
                   : "bg-slate-200 text-slate-400"
               }`}
             >
@@ -77,24 +52,12 @@ export function TabSwitchWarning({
           ))}
         </div>
 
-        {/* Button */}
-        {!isAutoSubmitting && (
-          <button
-            onClick={onClose}
-            className="w-full h-10 rounded-lg bg-slate-900 text-white font-semibold hover:bg-slate-800 transition-colors"
-          >
-            Continue Test
-          </button>
-        )}
-
-        {isAutoSubmitting && (
-          <button
-            onClick={handleGoToResults}
-            className="w-full h-10 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors"
-          >
-            Go to Results
-          </button>
-        )}
+        <button
+          onClick={onClose}
+          className="h-10 w-full rounded-lg bg-slate-900 font-semibold text-white transition-colors hover:bg-slate-800"
+        >
+          Continue Test
+        </button>
       </div>
     </div>
   );

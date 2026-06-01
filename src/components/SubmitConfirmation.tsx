@@ -1,10 +1,13 @@
 "use client";
 
+import React from "react";
+
 interface SubmitConfirmationProps {
   isVisible: boolean;
-  onConfirm: () => void;
+  onConfirm: () => Promise<void> | void;
   onCancel: () => void;
   isSubmitting?: boolean;
+  showCancelButton?: boolean;
   title?: string;
   message?: string;
 }
@@ -14,9 +17,28 @@ export function SubmitConfirmation({
   onConfirm,
   onCancel,
   isSubmitting = false,
+  showCancelButton = true,
   title = "Submit Test?",
   message = "Are you sure you want to submit your test? You won't be able to change your answers after submission.",
 }: SubmitConfirmationProps) {
+  if (!isVisible) return null;
+
+  const [localClicked, setLocalClicked] = React.useState(false);
+
+  const handleConfirmClick = async () => {
+    if (localClicked) return;
+    setLocalClicked(true);
+    console.log("Modal submit clicked");
+    try {
+      console.log("Calling parent onConfirm");
+      const res = await onConfirm();
+      console.log("Parent onConfirm completed", { res });
+      console.log("Modal submit completed");
+    } catch (error) {
+      console.error("Modal submit failed:", error);
+      setLocalClicked(false);
+    }
+  };
   if (!isVisible) return null;
 
   return (
@@ -29,29 +51,31 @@ export function SubmitConfirmation({
 
         {/* Title */}
         <h2 className="text-xl font-bold text-center mb-3 text-blue-900">
-          Submit Test?
+          {title}
         </h2>
 
         {/* Message */}
         <p className="text-sm text-center mb-6 leading-relaxed text-blue-700">
-          Are you sure you want to submit your test? You won't be able to change your answers after submission.
+          {message}
         </p>
 
         {/* Buttons */}
         <div className="flex gap-3">
+          {showCancelButton && (
+            <button
+              onClick={onCancel}
+              disabled={isSubmitting}
+              className="flex-1 h-10 rounded-lg bg-slate-200 text-slate-900 font-semibold hover:bg-slate-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Cancel
+            </button>
+          )}
           <button
-            onClick={onCancel}
-            disabled={isSubmitting}
-            className="flex-1 h-10 rounded-lg bg-slate-200 text-slate-900 font-semibold hover:bg-slate-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={isSubmitting}
+            onClick={handleConfirmClick}
+            disabled={isSubmitting || localClicked}
             className="flex-1 h-10 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isSubmitting ? "Submitting..." : "Submit"}
+            {isSubmitting || localClicked ? "Submitting..." : "Submit"}
           </button>
         </div>
       </div>

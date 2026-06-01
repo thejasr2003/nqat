@@ -1,11 +1,12 @@
 "use client";
 
-import React, { Suspense, useEffect, useState } from "react";
+import React, { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { TabSwitchWarning } from "@/components/TabSwitchWarning";
 import { SubmitConfirmation } from "@/components/SubmitConfirmation";
-import { useTest } from "@/hooks/useTest";
+import { useMalpracticeWarning, useTest } from "@/hooks/useTest";
+import { ForceSubmitModal } from "@/components/test/ForceSubmitModal";
 
 type QuestionType = "MCQ" | "NUMERIC" | "WORD_BLANK";
 
@@ -42,6 +43,10 @@ function TestContent() {
   const searchParams = useSearchParams();
   const candidateId = searchParams.get("candidateId");
 
+  const { warningCount, isTerminated, addWarning, markCompleted, forceSubmitReason } =
+    useMalpracticeWarning();
+  const [malpracticeAutoSubmitted, setMalpracticeAutoSubmitted] = useState<boolean | null>(null);
+
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -49,11 +54,10 @@ function TestContent() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string>("");
   const [hasSubmitted, setHasSubmitted] = useState(false);
-  const [tabSwitchCount, setTabSwitchCount] = useState(0);
-  const [showWarning, setShowWarning] = useState(false);
+  const [showWarningModal, setShowWarningModal] = useState(false);
   const [showSubmitConfirmation, setShowSubmitConfirmation] = useState(false);
-  const [confirmationMode, setConfirmationMode] = useState<"submit" | "leave">("submit");
-  const [hasExpiredPrompted, setHasExpiredPrompted] = useState(false);
+  const [malpracticeConfirmationShown, setMalpracticeConfirmationShown] = useState(false);
+  const [confirmationMode, setConfirmationMode] = useState<"submit" | "leave" | "malpractice_limit">("submit");
 
   const getBlankCount = (text: string) => (text.match(/_{2,}/g) || []).length;
 
@@ -74,7 +78,7 @@ function TestContent() {
     return typeof answer === "string" && answer.trim().length > 0;
   };
 
-  const validateBeforeSubmit = () => {
+  const validateBeforeSubmit = useCallback(() => {
     for (const question of questions) {
       if (question.type !== "WORD_BLANK") continue;
       const answer = answers[question.id];
@@ -85,7 +89,17 @@ function TestContent() {
       }
     }
     return true;
-  };
+  }, [answers, questions]);
+
+  // Protect route: redirect if assessment already submitted
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    
+    const alreadySubmitted = window.localStorage.getItem("assessment_submitted") === "true";
+    if (alreadySubmitted) {
+      router.replace("/result");
+    }
+  }, [router]);
 
   // Fetch questions once on mount
   useEffect(() => {
@@ -96,7 +110,7 @@ function TestContent() {
         const data = await response.json();
         setQuestions(data);
         setLoading(false);
-      } catch (err) {
+      } catch {
         setError("Failed to load questions");
         setLoading(false);
       }
@@ -106,54 +120,248 @@ function TestContent() {
   }, []);
 
   // Define handleSubmit first so it's available for other hooks
-  const handleSubmit = async () => {
-    if (submitting || hasSubmitted) return;
-    if (!validateBeforeSubmit()) return;
+  const submitTest = useCallback(
+    async ({
+      bypassValidation = false,
+      preserveMalpractice = false,
+    }: {
+      bypassValidation?: boolean;
+      preserveMalpractice?: boolean;
+    } = {}) => {
+      if (submitting || hasSubmitted) {
+        console.log("submitTest skipped because already submitting or submitted", {
+          submitting,
+          hasSubmitted,
+        });
+        return false;
+      }
 
-    if (!candidateId) {
-      setError("Candidate ID is required to submit the test.");
+      if (!bypassValidation && !validateBeforeSubmit()) {
+        console.log("submitTest validation failed");
+        return false;
+      }
+
+      if (!candidateId) {
+        setError("Candidate ID is required to submit the test.");
+        return false;
+      }
+
+      setSubmitting(true);
+      setError("");
+      console.log("Submit started", { candidateId, preserveMalpractice, answersCount: Object.keys(answers || {}).length });
+      console.log("Submitting assessment...", { candidateId, preserveMalpractice });
+
+      let success = false;
+
+      try {
+        console.log("Calling submit API", {
+          url: "/api/test/submit",
+          candidateId,
+          answersCount: Object.keys(answers || {}).length,
+        });
+        const response = await fetch("/api/test/submit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            candidateId,
+            testId: "main-test",
+            answers,
+          }),
+        });
+
+        console.log("Submission response status:", response.status);
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error("Submission error response:", errorData);
+          setError(errorData.error || "Submission failed");
+          return false;
+        }
+
+        const resultData = await response.json();
+        console.log("Submission success response:", resultData);
+
+        if (!preserveMalpractice) {
+          markCompleted();
+        }
+
+        if (preserveMalpractice) {
+          localStorage.setItem("assessment_malpractice_auto_submitted", "true");
+          setMalpracticeAutoSubmitted(true);
+        }
+
+        // Mark assessment as submitted and clean up session data
+        localStorage.setItem("assessment_submitted", "true");
+        localStorage.removeItem("testEndTime");
+        localStorage.removeItem("assessment_timer_expired");
+        localStorage.removeItem("assessment_force_submit");
+        localStorage.removeItem("assessment_submit_reason");
+        localStorage.removeItem("assessment_warning_count");
+        localStorage.removeItem("assessment_malpractice_logs");
+
+        setHasSubmitted(true);
+        success = true;
+        console.log("Submit successful", {
+          candidateId,
+          preserveMalpractice,
+          responseData: resultData,
+        });
+        const destination = "/result";
+        console.log("Redirecting to result page", destination);
+        setSubmitting(false);
+        try {
+          const pushResult = await router.push(destination);
+          console.log("router.push completed", destination, { pushResult });
+          if (typeof window !== "undefined" && window.location.pathname !== destination) {
+            console.warn("router.push did not navigate, falling back to window.location.href", {
+              currentPath: window.location.pathname,
+              destination,
+            });
+            window.location.href = destination;
+          }
+        } catch (err) {
+          console.error("router.push failed:", err);
+          if (typeof window !== "undefined") {
+            console.log("Falling back to window.location.href", destination);
+            window.location.href = destination;
+          }
+        }
+        return true;
+      } catch (error) {
+        console.error("Submission exception:", error);
+        setError("Submission failed");
+        setSubmitting(false);
+        return false;
+      } finally {
+        if (!success) {
+          setSubmitting(false);
+        }
+      }
+    },
+    [answers, candidateId, hasSubmitted, markCompleted, router, submitting, validateBeforeSubmit]
+  );
+
+  const { timeRemaining, isExpired, formattedTime, totalTime } = useTest({
+    totalQuestions: questions.length > 0 ? questions.length : undefined,
+  });
+
+  useEffect(() => {
+    if (isTerminated) {
+      setShowWarningModal(false);
+      router.replace("/result?status=terminated");
+    }
+  }, [isTerminated, router]);
+
+  useEffect(() => {
+    if (isExpired) {
+      setShowWarningModal(false);
+      setShowSubmitConfirmation(false);
       return;
     }
 
-    setSubmitting(true);
-    setError("");
-    try {
-      const response = await fetch("/api/test/submit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          candidateId,
-          testId: "main-test",
-          answers,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        setError(errorData.error || "Submission failed");
-        setSubmitting(false);
-        return;
+    if (forceSubmitReason === "malpractice_limit") {
+      setShowWarningModal(false);
+      setConfirmationMode("malpractice_limit");
+      if (!malpracticeConfirmationShown) {
+        setShowSubmitConfirmation(true);
+        setMalpracticeConfirmationShown(true);
       }
-
-      localStorage.removeItem("testEndTime");
-      router.replace(`/result`);
-    } catch (err: any) {
-      setError(err.message || "Submission failed");
-      setSubmitting(false);
+      return;
     }
-  };
+
+    if (!isTerminated && warningCount > 0 && warningCount < 3) {
+      setShowWarningModal(true);
+      setShowSubmitConfirmation(false);
+      setMalpracticeConfirmationShown(false);
+      return;
+    }
+
+    setShowWarningModal(false);
+    if (warningCount < 3) {
+      setShowSubmitConfirmation(false);
+    }
+  }, [forceSubmitReason, isExpired, isTerminated, warningCount, malpracticeConfirmationShown]);
+
+  // Auto-submit on termination removed. We now only prompt the user
+  // to submit when malpractice limit is reached. This prevents
+  // automatic termination and gives the user a chance to confirm.
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    setMalpracticeAutoSubmitted(
+      window.localStorage.getItem("assessment_malpractice_auto_submitted") === "true"
+    );
+  }, []);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        addWarning("visibility_change");
+      }
+    };
+
+    const handleBlur = () => {
+      addWarning("window_blur");
+    };
+
+    const handleFullscreenChange = () => {
+      const fullscreenElement =
+        document.fullscreenElement ||
+        (document as Document & { webkitFullscreenElement?: Element | null }).webkitFullscreenElement ||
+        (document as Document & { mozFullScreenElement?: Element | null }).mozFullScreenElement;
+
+      if (!fullscreenElement) {
+        addWarning("fullscreen_exit");
+      }
+    };
+
+    const handlePageHide = () => {
+      addWarning("page_hide");
+    };
+
+    window.addEventListener("blur", handleBlur);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    window.addEventListener("pagehide", handlePageHide);
+
+    return () => {
+      window.removeEventListener("blur", handleBlur);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      window.removeEventListener("pagehide", handlePageHide);
+    };
+  }, [addWarning]);
 
   // Handle submit button click - show confirmation
   const handleSubmitClick = () => {
+    if (isExpired || forceSubmitReason) {
+      return;
+    }
+
     setConfirmationMode("submit");
     setShowSubmitConfirmation(true);
   };
 
   // Handle confirmation - proceed with submission
-  const handleConfirmSubmit = () => {
-    setShowSubmitConfirmation(false);
-    setHasSubmitted(true);
-    handleSubmit();
+  const handleConfirmSubmit = async () => {
+    console.log("Maximum warning submit clicked", { confirmationMode });
+    console.log("Actual submit function called");
+    console.log("handleConfirmSubmit calling submitTest", { confirmationMode });
+    let result = false;
+
+    if (confirmationMode === "malpractice_limit") {
+      result = await submitTest({ bypassValidation: true, preserveMalpractice: true });
+    } else if (confirmationMode === "leave") {
+      result = await submitTest({ bypassValidation: true, preserveMalpractice: false });
+    } else {
+      result = await submitTest();
+    }
+
+    if (result) {
+      setShowSubmitConfirmation(false);
+      console.log("handleConfirmSubmit: submitTest returned success", { result });
+    }
   };
 
   // Handle cancel - close confirmation
@@ -161,82 +369,17 @@ function TestContent() {
     setShowSubmitConfirmation(false);
   };
 
-  const promptLeaveTest = () => {
-    setConfirmationMode("leave");
-    setShowSubmitConfirmation(true);
-  };
+  const isForceSubmitActive = Boolean(forceSubmitReason) || isExpired;
 
-  // Use dynamic timer (1 minute per question)
-  const { timeRemaining, isExpired, formattedTime, totalTime } = useTest({
-    totalQuestions: questions.length > 0 ? questions.length : undefined,
-  });
-
-  // Show submit confirmation when timer expires instead of auto-submitting
-  useEffect(() => {
-    if (
-      isExpired &&
-      questions.length > 0 &&
-      !submitting &&
-      !hasSubmitted &&
-      !hasExpiredPrompted
-    ) {
-      setConfirmationMode("submit");
-      setShowSubmitConfirmation(true);
-      setHasExpiredPrompted(true);
+  const handleForceSubmit = useCallback(() => {
+    console.log("handleForceSubmit invoked", { forceSubmitReason });
+    if (forceSubmitReason === "malpractice_limit") {
+      void submitTest({ bypassValidation: true, preserveMalpractice: true });
+      return;
     }
-  }, [isExpired, submitting, hasSubmitted, hasExpiredPrompted]);
 
-  // Tab Switch Detection - Auto-submit on 3rd violation
-  useEffect(() => {
-    let warningTimeout: NodeJS.Timeout;
-
-    const detectTabSwitch = () => {
-      setTabSwitchCount((prev) => {
-        const newCount = prev + 1;
-
-        // Show warning for violations 1 and 2
-        if (newCount < 3) {
-          setShowWarning(true);
-          // Auto-close warning after 5 seconds
-          warningTimeout = setTimeout(() => {
-            setShowWarning(false);
-          }, 5000);
-        } 
-        // Auto-submit on 3rd violation
-        else if (newCount >= 3) {
-          setShowWarning(true);
-          // Submit after brief delay
-          warningTimeout = setTimeout(() => {
-            setHasSubmitted(true);
-            handleSubmit();
-          }, 1500);
-        }
-
-        return newCount;
-      });
-    };
-
-    // Detect when tab becomes hidden
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        detectTabSwitch();
-      }
-    };
-
-    // Detect when window loses focus
-    const handleWindowBlur = () => {
-      detectTabSwitch();
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("blur", handleWindowBlur);
-
-    return () => {
-      clearTimeout(warningTimeout);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("blur", handleWindowBlur);
-    };
-  }, [submitting, hasSubmitted, handleSubmit]);
+    void submitTest({ bypassValidation: true, preserveMalpractice: false });
+  }, [forceSubmitReason, submitTest]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -283,29 +426,26 @@ function TestContent() {
 
   const currentQuestion = questions[currentIndex];
 
-  const handleAnswerSelect = (option: string) => {
-    setAnswers((prev) => ({
-      ...prev,
-      [currentQuestion.id]: option,
-    }));
-  };
-
   const handleNext = () => {
-    if (currentIndex < questions.length - 1) {
-      setCurrentIndex(currentIndex + 1);
+    if (isForceSubmitActive || currentIndex >= questions.length - 1) {
+      return;
     }
+
+    setCurrentIndex(currentIndex + 1);
   };
 
   const handlePrev = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1);
+    if (isForceSubmitActive || currentIndex <= 0) {
+      return;
     }
+
+    setCurrentIndex(currentIndex - 1);
   };
 
   const answeredCount = questions.filter(isQuestionAnswered).length;
 
   return (
-    <div className="min-h-screen bg-white overflow-x-hidden">
+    <div>
       {/* Header */}
       <header className="sticky top-0 z-50 border-b border-slate-200 bg-white w-full">
         <div className="mx-auto w-full max-w-4xl px-6 py-4">
@@ -357,8 +497,13 @@ function TestContent() {
                 return (
                   <button
                     key={q.id}
-                    onClick={() => setCurrentIndex(idx)}
-                    className={`flex h-8 w-8 items-center justify-center text-xs font-medium transition-all rounded border ${
+                    onClick={() => {
+                      if (!isForceSubmitActive) {
+                        setCurrentIndex(idx);
+                      }
+                    }}
+                    disabled={isForceSubmitActive}
+                    className={`flex h-8 w-8 items-center justify-center text-xs font-medium transition-all rounded border disabled:opacity-50 ${
                       isActive
                         ? "bg-slate-900 text-white border-slate-900"
                         : isAnswered
@@ -425,12 +570,17 @@ function TestContent() {
                           name={currentQuestion.id}
                           value={key}
                           checked={selected}
-                          onChange={() =>
+                          disabled={isForceSubmitActive}
+                          onChange={() => {
+                            if (isForceSubmitActive) {
+                              return;
+                            }
+
                             setAnswers((prev) => ({
                               ...prev,
                               [currentQuestion.id]: key,
-                            }))
-                          }
+                            }));
+                          }}
                           className="mt-0.5 h-5 w-5 cursor-pointer accent-slate-900"
                         />
                         <div className="flex-1">
@@ -458,8 +608,13 @@ function TestContent() {
                   <input
                     type="number"
                     inputMode="decimal"
+                    disabled={isForceSubmitActive}
                     value={typeof answers[currentQuestion.id] === "string" ? (answers[currentQuestion.id] as string) : ""}
                     onChange={(event) => {
+                      if (isForceSubmitActive) {
+                        return;
+                      }
+
                       const value = event.target.value;
                       const normalized = value.replace(/[^0-9.-]/g, "");
                       setAnswers((prev) => ({
@@ -497,8 +652,13 @@ function TestContent() {
                               {idx < blankCount && (
                                 <input
                                   type="text"
+                                  disabled={isForceSubmitActive}
                                   value={blankValues[idx] ?? ""}
                                   onChange={(event) => {
+                                    if (isForceSubmitActive) {
+                                      return;
+                                    }
+
                                     const nextValues = Array.from({ length: blankCount }, (_, i) => blankValues[i] ?? "");
                                     nextValues[idx] = event.target.value;
                                     setAnswers((prev) => ({
@@ -526,7 +686,7 @@ function TestContent() {
         <div className="flex gap-3 mt-8">
           <Button
             onClick={handlePrev}
-            disabled={currentIndex === 0}
+            disabled={currentIndex === 0 || isForceSubmitActive}
             variant="outline"
             className="flex-1 h-10 text-sm font-medium disabled:opacity-50 border-slate-300 text-slate-900 hover:bg-slate-50"
           >
@@ -536,7 +696,7 @@ function TestContent() {
           {currentIndex === questions.length - 1 ? (
             <Button
               onClick={handleSubmitClick}
-              disabled={submitting}
+              disabled={submitting || isForceSubmitActive}
               className="flex-1 h-10 text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-50"
             >
               {submitting ? "Submitting..." : "Submit"}
@@ -544,30 +704,30 @@ function TestContent() {
           ) : (
             <Button
               onClick={handleNext}
-              className="flex-1 h-10 text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800"
+              disabled={isForceSubmitActive}
+              className="flex-1 h-10 text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-50"
             >
               Next
             </Button>
           )}
         </div>
 
-        {/* Violation Counter */}
-        {tabSwitchCount > 0 && (
-          <div className={`mt-6 p-3 text-sm rounded border-l-4 ${
-            tabSwitchCount === 1 ? "bg-amber-50 border-l-amber-500 text-amber-800" :
-            tabSwitchCount === 2 ? "bg-orange-50 border-l-orange-500 text-orange-800" :
-            "bg-red-50 border-l-red-600 text-red-800"
-          }`}>
-            <span className="font-medium">Tab Switch Violation: {tabSwitchCount}/3</span>
+        {/* Malpractice Status */}
+        {warningCount > 0 && (
+          <div className="mt-6 rounded border-l-4 border-l-amber-500 bg-amber-50 p-3 text-sm text-amber-800">
+            <span className="font-medium">Malpractice warning: {warningCount}/3</span>
+            <p className="mt-1">
+              Multiple violations will require you to submit your assessment. Please submit now to save your answers.
+            </p>
           </div>
         )}
       </main>
 
       {/* Tab Switch Warning Modal */}
       <TabSwitchWarning
-        isVisible={showWarning}
-        violationCount={tabSwitchCount}
-        onClose={() => setShowWarning(false)}
+        warningCount={warningCount}
+        isVisible={showWarningModal}
+        onClose={() => setShowWarningModal(false)}
       />
 
       {/* Submit Confirmation Modal */}
@@ -576,9 +736,12 @@ function TestContent() {
         onConfirm={handleConfirmSubmit}
         onCancel={handleCancelSubmit}
         isSubmitting={submitting}
+        showCancelButton={confirmationMode !== "malpractice_limit"}
         title={
           confirmationMode === "leave"
             ? "Leave Test?"
+            : confirmationMode === "malpractice_limit"
+            ? "Maximum Warnings Reached"
             : isExpired
             ? "Time's Up!"
             : "Submit Test?"
@@ -586,10 +749,20 @@ function TestContent() {
         message={
           confirmationMode === "leave"
             ? "You are about to go back to registration. Submit your answers now to save your progress."
+            : confirmationMode === "malpractice_limit"
+            ? "You have switched tabs multiple times. You must submit the assessment to continue."
             : isExpired
             ? "The timer has expired. Submit your test now to record your responses."
             : "Are you sure you want to submit your test? You won't be able to change your answers after submission."
         }
+      />
+
+      {/* Force Submit Modal */}
+      <ForceSubmitModal
+        open={isExpired || forceSubmitReason === "timer_expired"}
+        reason="timer_expired"
+        onSubmit={handleForceSubmit}
+        isSubmitting={submitting}
       />
     </div>
   );
