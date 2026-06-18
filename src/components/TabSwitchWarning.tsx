@@ -26,14 +26,14 @@ export function TabSwitchWarning({
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="w-full max-w-sm rounded-lg border-2 border-yellow-400 bg-yellow-50 p-6 shadow-2xl">
+      <div className="flex w-full max-w-sm flex-col rounded-lg border-2 border-yellow-400 bg-yellow-50 p-6 shadow-2xl dark:border-yellow-500 dark:bg-slate-900">
         <div className="mb-4 flex justify-center text-5xl">⚠️</div>
 
-        <h2 className="mb-3 text-center text-xl font-bold text-yellow-800">
+        <h2 className="mb-3 text-center text-xl font-bold text-yellow-800 dark:text-yellow-100">
           {title}
         </h2>
 
-        <p className="mb-4 text-center text-sm leading-relaxed text-yellow-700">
+        <p className="mb-4 text-center text-sm leading-relaxed text-yellow-700 dark:text-yellow-200">
           {message}
         </p>
 
@@ -44,7 +44,7 @@ export function TabSwitchWarning({
               className={`flex h-10 w-10 items-center justify-center rounded-full text-xs font-bold ${
                 num <= displayedWarningCount
                   ? "bg-red-500 text-white"
-                  : "bg-slate-200 text-slate-400"
+                  : "bg-slate-200 text-slate-400 dark:bg-slate-700 dark:text-slate-500"
               }`}
             >
               {num}
@@ -52,12 +52,14 @@ export function TabSwitchWarning({
           ))}
         </div>
 
-        <button
-          onClick={onClose}
-          className="h-10 w-full rounded-lg bg-slate-900 font-semibold text-white transition-colors hover:bg-slate-800"
-        >
-          Continue Test
-        </button>
+        <div className="flex w-full justify-center">
+          <button
+            onClick={onClose}
+            className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-slate-900 font-semibold text-white transition-colors hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200"
+          >
+            Continue Test
+          </button>
+        </div>
       </div>
     </div>
   );

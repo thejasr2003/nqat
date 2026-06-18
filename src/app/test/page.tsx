@@ -404,10 +404,10 @@ function TestContent() {
 
   if (!candidateId) {
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-50">
+      <div className="flex h-screen items-center justify-center bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-50">
         <div className="text-center">
           <div className="mb-2 text-4xl">⚠️</div>
-          <p className="text-sm font-medium text-red-600">Invalid test access</p>
+          <p className="text-sm font-medium text-red-600 dark:text-red-400">Invalid test access</p>
         </div>
       </div>
     );
@@ -415,10 +415,10 @@ function TestContent() {
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-50">
+      <div className="flex h-screen items-center justify-center bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-50">
         <div className="text-center">
           <div className="mb-3 h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600 mx-auto"></div>
-          <p className="text-sm text-slate-600">Loading questions...</p>
+          <p className="text-sm text-slate-600 dark:text-slate-300">Loading questions...</p>
         </div>
       </div>
     );
@@ -445,25 +445,25 @@ function TestContent() {
   const answeredCount = questions.filter(isQuestionAnswered).length;
 
   return (
-    <div>
+    <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-50">
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-slate-200 bg-white w-full">
+      <header className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
         <div className="mx-auto w-full max-w-4xl px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-lg font-semibold text-slate-900">
+              <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-50">
                 Assessment
               </h1>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-300">
                 Question {currentIndex + 1} of {questions.length} • {answeredCount} answered
               </p>
             </div>
 
             <div className="text-right">
-              <p className="text-xs text-slate-500 mb-1">Time Remaining</p>
+              <p className="mb-1 text-xs text-slate-500 dark:text-slate-300">Time Remaining</p>
               <div
                 className={`text-2xl font-semibold font-mono ${
-                  timeRemaining < 300 ? "text-red-600" : "text-slate-900"
+                  timeRemaining < 300 ? "text-red-600 dark:text-red-400" : "text-slate-900 dark:text-slate-50"
                 }`}
               >
                 {formattedTime}
@@ -473,10 +473,10 @@ function TestContent() {
         </div>
 
         {/* Progress Bar */}
-        <div className="h-1 w-full bg-slate-200">
+        <div className="h-1 w-full bg-slate-200 dark:bg-slate-700">
           <div
             className={`h-1 transition-all duration-300 ${
-              timeRemaining < 300 ? "bg-red-500" : "bg-slate-400"
+              timeRemaining < 300 ? "bg-red-500" : "bg-slate-400 dark:bg-slate-300"
             }`}
             style={{
               width: `${
@@ -487,9 +487,9 @@ function TestContent() {
         </div>
 
         {/* Question Navigator */}
-        <div className="bg-slate-50 border-t border-slate-200 w-full">
-          <div className="mx-auto w-full max-w-4xl px-6 py-3 overflow-x-auto">
-            <div className="flex gap-2 min-w-max">
+        <div className="w-full border-t border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900">
+          <div className="mx-auto w-full max-w-4xl overflow-x-auto px-6 py-3">
+            <div className="flex min-w-max gap-2">
               {questions.map((q, idx) => {
                 const isActive = idx === currentIndex;
                 const isAnswered = isQuestionAnswered(q);
@@ -503,12 +503,12 @@ function TestContent() {
                       }
                     }}
                     disabled={isForceSubmitActive}
-                    className={`flex h-8 w-8 items-center justify-center text-xs font-medium transition-all rounded border disabled:opacity-50 ${
+                    className={`flex h-8 w-8 items-center justify-center rounded border text-xs font-medium transition-all disabled:opacity-50 ${
                       isActive
-                        ? "bg-slate-900 text-white border-slate-900"
+                        ? "border-slate-900 bg-slate-900 text-white dark:border-slate-100 dark:bg-slate-100 dark:text-slate-900"
                         : isAnswered
-                        ? "bg-slate-100 text-slate-900 border-slate-200"
-                        : "bg-white text-slate-600 border-slate-300 hover:border-slate-400"
+                        ? "border-slate-200 bg-slate-100 text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                        : "border-slate-300 bg-white text-slate-600 hover:border-slate-400 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-300 dark:hover:border-slate-500"
                     }`}
                     title={`Question ${idx + 1}`}
                   >
@@ -524,7 +524,7 @@ function TestContent() {
       {/* Main Content */}
       <main className="mx-auto w-full max-w-4xl px-6 py-8">
         {error && (
-          <div className="mb-6 p-4 rounded border border-red-300 bg-red-50 text-red-800 text-sm">
+          <div className="mb-6 rounded border border-red-300 bg-red-50 p-4 text-sm text-red-800 dark:border-red-700 dark:bg-red-950/40 dark:text-red-200">
             {error}
           </div>
         )}
@@ -534,17 +534,17 @@ function TestContent() {
           <div className="mb-8">
             {/* Question Number and Status */}
             <div className="mb-4 flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+              <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-300">
                 Question {currentIndex + 1}
               </span>
-              <span className="text-xs text-slate-400">
+              <span className="text-xs text-slate-400 dark:text-slate-400">
                 {isQuestionAnswered(currentQuestion) ? "Answered" : "Not answered"}
               </span>
             </div>
 
             {/* Question Text - Only show for non-word-blank questions */}
             {currentQuestion.type !== "WORD_BLANK" && (
-              <h2 className="mb-6 text-xl font-semibold text-slate-900 leading-relaxed break-words whitespace-pre-wrap">
+              <h2 className="mb-6 break-words whitespace-pre-wrap text-xl font-semibold leading-relaxed text-slate-900 dark:text-slate-50">
                 {currentQuestion.question}
               </h2>
             )}
@@ -559,10 +559,10 @@ function TestContent() {
                     return (
                       <label
                         key={key}
-                        className={`flex items-start gap-4 p-4 border rounded cursor-pointer transition-all ${
+                        className={`flex cursor-pointer items-start gap-4 rounded border p-4 transition-all ${
                           selected
-                            ? "border-slate-400 bg-slate-50"
-                            : "border-slate-200 bg-white hover:border-slate-300"
+                            ? "border-slate-400 bg-slate-50 dark:border-slate-500 dark:bg-slate-800"
+                            : "border-slate-200 bg-white hover:border-slate-300 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-600"
                         }`}
                       >
                         <input
@@ -581,14 +581,14 @@ function TestContent() {
                               [currentQuestion.id]: key,
                             }));
                           }}
-                          className="mt-0.5 h-5 w-5 cursor-pointer accent-slate-900"
+                          className="mt-0.5 h-5 w-5 cursor-pointer accent-slate-900 dark:accent-slate-100"
                         />
                         <div className="flex-1">
                           <div className="flex items-baseline gap-2">
-                            <span className="text-sm font-medium text-slate-500">
+                            <span className="text-sm font-medium text-slate-500 dark:text-slate-300">
                               {String.fromCharCode(65 + idx)}.
                             </span>
-                            <span className="text-sm text-slate-900 leading-relaxed break-words">
+                            <span className="break-words text-sm leading-relaxed text-slate-900 dark:text-slate-50">
                               {text}
                             </span>
                           </div>
@@ -602,7 +602,7 @@ function TestContent() {
               {/* Numeric */}
               {currentQuestion.type === "NUMERIC" && (
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                  <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">
                     Enter your answer
                   </label>
                   <input
@@ -627,7 +627,7 @@ function TestContent() {
                         event.preventDefault();
                       }
                     }}
-                    className="w-full px-0 py-2 text-base text-slate-900 border-0 border-b-2 border-slate-200 focus:border-b-slate-400 focus:outline-none transition-colors bg-transparent"
+                    className="w-full border-0 border-b-2 border-slate-200 bg-transparent px-0 py-2 text-base text-slate-900 transition-colors placeholder:text-slate-400 focus:border-b-slate-400 focus:outline-none dark:border-slate-700 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:border-b-slate-300"
                     placeholder="0"
                   />
                 </div>
@@ -645,7 +645,7 @@ function TestContent() {
 
                     return (
                       <div className="space-y-4">
-                        <p className="text-slate-900 leading-relaxed text-base">
+                        <p className="text-base leading-relaxed text-slate-900 dark:text-slate-50">
                           {segments.map((segment, idx) => (
                             <span key={idx}>
                               <span>{segment}</span>
@@ -666,7 +666,7 @@ function TestContent() {
                                       [currentQuestion.id]: nextValues,
                                     }));
                                   }}
-                                  className="inline-block mx-1 px-2 py-1 text-base text-slate-900 border-0 border-b-2 border-slate-300 focus:border-b-slate-900 focus:outline-none transition-colors bg-transparent w-32"
+                                  className="inline-block mx-1 w-32 border-0 border-b-2 border-slate-300 bg-transparent px-2 py-1 text-base text-slate-900 transition-colors placeholder:text-slate-400 focus:border-b-slate-900 focus:outline-none dark:border-slate-600 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:border-b-slate-300"
                                   placeholder=""
                                 />
                               )}
@@ -688,7 +688,7 @@ function TestContent() {
             onClick={handlePrev}
             disabled={currentIndex === 0 || isForceSubmitActive}
             variant="outline"
-            className="flex-1 h-10 text-sm font-medium disabled:opacity-50 border-slate-300 text-slate-900 hover:bg-slate-50"
+            className="h-10 flex-1 border-slate-300 text-slate-900 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:text-slate-100 dark:hover:bg-slate-800"
           >
             Previous
           </Button>
@@ -697,7 +697,7 @@ function TestContent() {
             <Button
               onClick={handleSubmitClick}
               disabled={submitting || isForceSubmitActive}
-              className="flex-1 h-10 text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-50"
+              className="h-10 flex-1 bg-slate-900 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200"
             >
               {submitting ? "Submitting..." : "Submit"}
             </Button>
@@ -705,7 +705,7 @@ function TestContent() {
             <Button
               onClick={handleNext}
               disabled={isForceSubmitActive}
-              className="flex-1 h-10 text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-50"
+              className="h-10 flex-1 bg-slate-900 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200"
             >
               Next
             </Button>
@@ -714,7 +714,7 @@ function TestContent() {
 
         {/* Malpractice Status */}
         {warningCount > 0 && (
-          <div className="mt-6 rounded border-l-4 border-l-amber-500 bg-amber-50 p-3 text-sm text-amber-800">
+          <div className="mt-6 rounded border-l-4 border-l-amber-500 bg-amber-50 p-3 text-sm text-amber-800 dark:border-l-amber-400 dark:bg-amber-950/40 dark:text-amber-200">
             <span className="font-medium">Malpractice warning: {warningCount}/3</span>
             <p className="mt-1">
               Multiple violations will require you to submit your assessment. Please submit now to save your answers.
@@ -772,10 +772,10 @@ export default function TestPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex h-screen items-center justify-center bg-slate-50">
+        <div className="flex h-screen items-center justify-center bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-50">
           <div className="text-center">
             <div className="mb-3 h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600 mx-auto"></div>
-            <p className="text-sm text-slate-600">Loading test...</p>
+            <p className="text-sm text-slate-600 dark:text-slate-300">Loading test...</p>
           </div>
         </div>
       }
