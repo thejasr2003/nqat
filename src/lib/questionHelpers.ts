@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 
-export type QuestionType = "MCQ" | "NUMERIC" | "WORD_BLANK";
+export type QuestionType = "MCQ" | "NUMERIC" | "WORD_BLANK" | "LONG_ANSWER";
 
 export interface BaseQuestion {
   id: string;
