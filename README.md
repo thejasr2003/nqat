@@ -386,4 +386,4 @@ http://localhost:3000/allquestions
 node scripts/deleteCandidate.js <usn>
 
 //to see the result of the all the candidates
-/allresult
+/allresult"# NAQT" 
