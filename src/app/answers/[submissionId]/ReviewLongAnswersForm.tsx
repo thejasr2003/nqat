@@ -154,7 +154,7 @@ export default function ReviewLongAnswersForm({
 
               <div className="mt-4">
                 <p className="text-sm text-slate-500">Submitted answer</p>
-                <div className="mt-2 whitespace-pre-wrap rounded-xl bg-white p-4 text-sm text-slate-900 shadow-sm">
+                <div className="mt-2 max-h-96 overflow-auto whitespace-pre-wrap break-words rounded-xl bg-white p-4 text-sm text-slate-900 shadow-sm">
                   {answer.answerText}
                 </div>
               </div>
