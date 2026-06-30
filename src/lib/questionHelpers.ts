@@ -31,7 +31,11 @@ export interface WordBlankQuestion extends BaseQuestion {
   correctAnswer: string[];
 }
 
-export type NormalizedQuestion = MCQQuestion | NumericQuestion | WordBlankQuestion;
+export interface LongAnswerQuestion extends BaseQuestion {
+  type: "LONG_ANSWER";
+}
+
+export type NormalizedQuestion = MCQQuestion | NumericQuestion | WordBlankQuestion | LongAnswerQuestion;
 
 export function shuffleArray<T>(array: T[]) {
   const cloned = [...array];
@@ -100,8 +104,21 @@ export function normalizeWordBlankQuestion(question: {
   };
 }
 
+export function normalizeLongAnswerQuestion(question: {
+  id: string;
+  questionText: string;
+  marks: number;
+}) {
+  return {
+    id: `la_${question.id}`,
+    type: "LONG_ANSWER" as const,
+    question: question.questionText,
+    marks: question.marks,
+  };
+}
+
 export async function fetchTestQuestions(testId: string) {
-  const [mcqQuestions, numericQuestions, wordBlankQuestions] = await Promise.all([
+  const [mcqQuestions, numericQuestions, wordBlankQuestions, longAnswerQuestions] = await Promise.all([
     prisma.question.findMany({
       where: { testId },
       select: {
@@ -132,12 +149,21 @@ export async function fetchTestQuestions(testId: string) {
         marks: true,
       },
     }),
+    prisma.longAnswerQuestion.findMany({
+      where: { testId },
+      select: {
+        id: true,
+        questionText: true,
+        marks: true,
+      },
+    }),
   ]);
 
   const normalizedQuestions: NormalizedQuestion[] = [
     ...mcqQuestions.map(normalizeMCQQuestion),
     ...numericQuestions.map(normalizeNumericQuestion),
     ...wordBlankQuestions.map(normalizeWordBlankQuestion),
+    ...longAnswerQuestions.map(normalizeLongAnswerQuestion),
   ];
 
   return normalizedQuestions;
@@ -176,6 +202,9 @@ export function evaluateAnswer(question: NormalizedQuestion, userAnswer: unknown
         }
       }
       return Math.round(score);
+    }
+    case "LONG_ANSWER": {
+      return 0;
     }
     default:
       return 0;

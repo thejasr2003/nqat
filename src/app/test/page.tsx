@@ -8,7 +8,7 @@ import { SubmitConfirmation } from "@/components/SubmitConfirmation";
 import { useMalpracticeWarning, useTest } from "@/hooks/useTest";
 import { ForceSubmitModal } from "@/components/test/ForceSubmitModal";
 
-type QuestionType = "MCQ" | "NUMERIC" | "WORD_BLANK";
+type QuestionType = "MCQ" | "NUMERIC" | "WORD_BLANK" | "LONG_ANSWER";
 
 interface BaseQuestion {
   id: string;
@@ -35,7 +35,11 @@ interface WordBlankQuestion extends BaseQuestion {
   type: "WORD_BLANK";
 }
 
-type Question = MCQQuestion | NumericQuestion | WordBlankQuestion;
+interface LongAnswerQuestion extends BaseQuestion {
+  type: "LONG_ANSWER";
+}
+
+type Question = MCQQuestion | NumericQuestion | WordBlankQuestion | LongAnswerQuestion;
 type AnswerRecord = Record<string, string | string[]>;
 
 function TestContent() {
@@ -74,6 +78,9 @@ function TestContent() {
     if (question.type === "WORD_BLANK") {
       const blankCount = getBlankCount(question.question);
       return isBlankComplete(answer, blankCount);
+    }
+    if (question.type === "LONG_ANSWER") {
+      return typeof answer === "string" && answer.trim().length > 0;
     }
     return typeof answer === "string" && answer.trim().length > 0;
   };
@@ -159,13 +166,34 @@ function TestContent() {
           candidateId,
           answersCount: Object.keys(answers || {}).length,
         });
+
+        const objectiveAnswers: Record<string, string | string[]> = {};
+        const longAnswers: Record<string, string> = {};
+
+        questions.forEach((question) => {
+          const answer = answers[question.id];
+          if (question.type === "LONG_ANSWER") {
+            if (typeof answer === "string" && answer.trim().length > 0) {
+              longAnswers[question.id] = answer.trim();
+            }
+            return;
+          }
+
+          if (typeof answer === "string" && answer.trim().length > 0) {
+            objectiveAnswers[question.id] = answer.trim();
+          } else if (Array.isArray(answer)) {
+            objectiveAnswers[question.id] = answer;
+          }
+        });
+
         const response = await fetch("/api/test/submit", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             candidateId,
             testId: "main-test",
-            answers,
+            answers: objectiveAnswers,
+            longAnswers,
           }),
         });
 
@@ -676,6 +704,31 @@ function TestContent() {
                       </div>
                     );
                   })()}
+                </div>
+              )}
+
+              {currentQuestion.type === "LONG_ANSWER" && (
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">
+                    Enter your answer
+                  </label>
+                  <textarea
+                    disabled={isForceSubmitActive}
+                    value={typeof answers[currentQuestion.id] === "string" ? (answers[currentQuestion.id] as string) : ""}
+                    onChange={(event) => {
+                      if (isForceSubmitActive) {
+                        return;
+                      }
+
+                      setAnswers((prev) => ({
+                        ...prev,
+                        [currentQuestion.id]: event.target.value,
+                      }));
+                    }}
+                    rows={6}
+                    className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50"
+                    placeholder="Type your long answer here..."
+                  />
                 </div>
               )}
             </div>

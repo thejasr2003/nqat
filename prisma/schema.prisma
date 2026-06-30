@@ -29,6 +29,7 @@ model Test {
   questions          Question[]
   numericQuestions   NumericQuestion[]
   wordBlankQuestions WordBlankQuestion[]
+  longAnswerQuestions LongAnswerQuestion[]
   submissions        Submission[]
 }
 
@@ -70,15 +71,48 @@ model WordBlankQuestion {
   @@index([testId])
 }
 
+model LongAnswerQuestion {
+  id           String   @id @default(cuid())
+  testId       String
+  questionText String
+  marks        Int      @default(2)
+  createdAt    DateTime @default(now())
+  test         Test     @relation(fields: [testId], references: [id])
+  longAnswers  LongAnswerAnswer[]
+
+  @@index([testId])
+}
+
+model LongAnswerAnswer {
+  id           String    @id @default(cuid())
+  submissionId String
+  questionId   String
+  candidateId  String?
+  answerText   String
+  isCorrect    Boolean?
+  awardedMarks Int      @default(0)
+  reviewedBy   String?
+  reviewedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  submission   Submission        @relation(fields: [submissionId], references: [id])
+  question     LongAnswerQuestion @relation(fields: [questionId], references: [id])
+
+  @@index([submissionId])
+  @@index([questionId])
+}
+
 model Submission {
-  id          String    @id @default(uuid())
-  testId      String
-  candidateId String
-  answers     Json
-  score       Int
-  submittedAt DateTime  @default(now())
-  candidate   Candidate @relation(fields: [candidateId], references: [id])
-  test        Test      @relation(fields: [testId], references: [id])
+  id             String    @id @default(uuid())
+  testId         String
+  candidateId    String
+  answers        Json
+  score          Int
+  objectiveScore Int      @default(0)
+  submittedAt    DateTime  @default(now())
+  candidate      Candidate @relation(fields: [candidateId], references: [id])
+  test           Test      @relation(fields: [testId], references: [id])
+  longAnswers    LongAnswerAnswer[]
 
   @@unique([testId, candidateId])
   @@index([candidateId])

@@ -3,6 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { testSubmitSchema } from "@/lib/validations";
 import { evaluateAnswer, fetchTestQuestions } from "@/lib/questionHelpers";
 
+function getRawQuestionId(prefixedId: string) {
+  return prefixedId.replace(/^(mcq_|num_|wb_|la_)/, "");
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -28,27 +32,47 @@ export async function POST(req: NextRequest) {
 
     const questions = await fetchTestQuestions(validatedData.testId);
 
-    let score = 0;
+    let objectiveScore = 0;
     for (const question of questions) {
+      if (question.type === "LONG_ANSWER") continue;
       const userAnswer = validatedData.answers[question.id];
-      score += evaluateAnswer(question, userAnswer);
+      objectiveScore += evaluateAnswer(question, userAnswer);
     }
 
-    const totalMarks = questions.reduce((sum, question) => sum + question.marks, 0);
+    const objectiveTotal = questions
+      .filter((question) => question.type !== "LONG_ANSWER")
+      .reduce((sum, question) => sum + question.marks, 0);
 
-    await prisma.submission.create({
+    const submission = await prisma.submission.create({
       data: {
         testId: validatedData.testId,
         candidateId: validatedData.candidateId,
         answers: validatedData.answers,
-        score,
+        score: objectiveScore,
+        objectiveScore,
       },
     });
 
+    const longAnswers = validatedData.longAnswers ?? {};
+    const longAnswerRecords = Object.entries(longAnswers)
+      .filter(([, answerText]) => answerText && answerText.trim().length > 0)
+      .map(([questionId, answerText]) => ({
+        submissionId: submission.id,
+        questionId: getRawQuestionId(questionId),
+        candidateId: validatedData.candidateId,
+        answerText: answerText.trim(),
+      }));
+
+    if (longAnswerRecords.length > 0) {
+      await prisma.longAnswerAnswer.createMany({
+        data: longAnswerRecords,
+      });
+    }
+
     return NextResponse.json({
-      score,
-      total: totalMarks,
-      percentage: totalMarks > 0 ? Math.round((score / totalMarks) * 100) : 0,
+      score: objectiveScore,
+      total: objectiveTotal,
+      percentage: objectiveTotal > 0 ? Math.round((objectiveScore / objectiveTotal) * 100) : 0,
       message: "Test submitted successfully",
     });
   } catch (error: any) {

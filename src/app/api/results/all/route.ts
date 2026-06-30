@@ -36,6 +36,11 @@ export async function GET() {
                 marks: true,
               },
             },
+            longAnswerQuestions: {
+              select: {
+                marks: true,
+              },
+            },
           },
         },
       },
@@ -45,9 +50,14 @@ export async function GET() {
     });
 
     const results = submissions.map((submission) => {
-      const totalMarks = submission.test.questions.length * 2 +
+      const objectiveTotal = submission.test.questions.length * 2 +
         submission.test.numericQuestions.reduce((sum, question) => sum + question.marks, 0) +
         submission.test.wordBlankQuestions.reduce((sum, question) => sum + question.marks, 0);
+      const longAnswerTotal = submission.test.longAnswerQuestions.reduce(
+        (sum, question) => sum + question.marks,
+        0
+      );
+      const totalMarks = objectiveTotal + longAnswerTotal;
 
       return {
         id: submission.id,
@@ -62,7 +72,7 @@ export async function GET() {
         total: totalMarks,
         percentage: totalMarks > 0 ? Math.round((submission.score / totalMarks) * 100) : 0,
         submittedAt: submission.submittedAt,
-        status: submission.score >= 30 ? "selected" : "rejected",
+        status: submission.score >= 40 ? "selected" : "rejected",
       };
     });
 

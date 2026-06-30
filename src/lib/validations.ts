@@ -82,10 +82,21 @@ export const wordBlankQuestionSchema = z
     }
   });
 
+export const longAnswerQuestionSchema = z.object({
+  questionText: z.string().min(5, "Question is required"),
+  marks: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .default(2),
+});
+
 export const testSubmitSchema = z.object({
   candidateId: z.string(),
   testId: z.string(),
   answers: z.record(z.string(), z.union([z.string(), z.array(z.string())])),
+  longAnswers: z.record(z.string(), z.string()).optional(),
 });
 
 export type CandidateInput = z.infer<typeof candidateSchema>;

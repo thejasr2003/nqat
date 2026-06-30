@@ -4,9 +4,14 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { questionSchema, numericQuestionSchema, wordBlankQuestionSchema } from "@/lib/validations";
+import {
+  questionSchema,
+  numericQuestionSchema,
+  wordBlankQuestionSchema,
+  longAnswerQuestionSchema,
+} from "@/lib/validations";
 
-type QuestionType = "mcq" | "numeric" | "wordblank";
+type QuestionType = "mcq" | "numeric" | "wordblank" | "longanswer";
 
 export default function AddQuestionPage() {
   const [activeTab, setActiveTab] = useState<QuestionType>("mcq");
@@ -34,6 +39,12 @@ export default function AddQuestionPage() {
   const [wordBlankFormData, setWordBlankFormData] = useState({
     paragraph: "",
     answers: "",
+  });
+
+  // Long Answer Form Data
+  const [longAnswerFormData, setLongAnswerFormData] = useState({
+    questionText: "",
+    marks: "2",
   });
 
   const handleMcqChange = (
@@ -69,6 +80,20 @@ export default function AddQuestionPage() {
   ) => {
     const { name, value } = e.target;
     setWordBlankFormData((prev) => ({ ...prev, [name]: value }));
+    if (errors[name]) {
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
+    }
+  };
+
+  const handleLongAnswerChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = e.target;
+    setLongAnswerFormData((prev) => ({ ...prev, [name]: value }));
     if (errors[name]) {
       setErrors((prev) => {
         const newErrors = { ...prev };
@@ -121,6 +146,51 @@ export default function AddQuestionPage() {
         setErrors(newErrors);
       } else {
         setErrors({ submit: error.message });
+      }
+      setLoading(false);
+    }
+  };
+
+  const handleLongAnswerSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrors({});
+    setSuccess("");
+
+    try {
+      const parsedInput = {
+        questionText: longAnswerFormData.questionText,
+        marks: Number(longAnswerFormData.marks || 2),
+      };
+
+      longAnswerQuestionSchema.parse(parsedInput);
+
+      const response = await fetch("/api/questions/longanswer/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(parsedInput),
+      });
+
+      if (!response.ok) {
+        const payload = await response.json();
+        setErrors({ submit: payload.error });
+        setLoading(false);
+        return;
+      }
+
+      setSuccess("Long answer question added successfully!");
+      setLongAnswerFormData({ questionText: "", marks: "2" });
+      setTimeout(() => setSuccess(""), 3500);
+      setLoading(false);
+    } catch (error: any) {
+      if (error.errors) {
+        const next: Record<string, string> = {};
+        error.errors.forEach((err: any) => {
+          next[err.path[0]] = err.message;
+        });
+        setErrors(next);
+      } else {
+        setErrors({ submit: error.message || "Failed to save question" });
       }
       setLoading(false);
     }
@@ -224,6 +294,7 @@ export default function AddQuestionPage() {
     { id: "mcq" as QuestionType, label: "MCQ Question", description: "Multiple choice questions" },
     { id: "numeric" as QuestionType, label: "Numeric Question", description: "Questions with numeric answers" },
     { id: "wordblank" as QuestionType, label: "Word Blank Question", description: "Fill in the blanks questions" },
+    { id: "longanswer" as QuestionType, label: "Long Answer Question", description: "Open-ended questions for later review" },
   ];
 
   return (
@@ -520,6 +591,72 @@ export default function AddQuestionPage() {
                 <li>• Provide comma-separated answers in the correct order</li>
                 <li>• No extra spaces in answer values; they will be trimmed</li>
                 <li>• Example paragraph: "React __ a JS ___"</li>
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "longanswer" && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="lg:col-span-2 bg-white rounded-lg border border-gray-200 shadow-sm p-6">
+              <form onSubmit={handleLongAnswerSubmit} className="space-y-5">
+                <div className="space-y-1.5">
+                  <Label htmlFor="questionText" className="text-xs font-medium text-gray-700">
+                    Question <span className="text-red-500">*</span>
+                  </Label>
+                  <textarea
+                    id="questionText"
+                    name="questionText"
+                    value={longAnswerFormData.questionText}
+                    onChange={handleLongAnswerChange}
+                    rows={5}
+                    className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      errors.questionText ? "border-red-500" : "border-gray-300"
+                    }`}
+                    placeholder="Enter the long answer question prompt"
+                  />
+                  {errors.questionText && (
+                    <p className="text-xs text-red-600">{errors.questionText}</p>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="marks" className="text-xs font-medium text-gray-700">
+                      Marks <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="marks"
+                      name="marks"
+                      type="number"
+                      min={1}
+                      value={longAnswerFormData.marks}
+                      onChange={handleLongAnswerChange}
+                      className={`h-9 text-sm ${errors.marks ? "border-red-500" : ""}`}
+                    />
+                    {errors.marks && (
+                      <p className="text-xs text-red-600">{errors.marks}</p>
+                    )}
+                  </div>
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full h-10 bg-blue-600 text-white font-medium hover:bg-blue-700"
+                >
+                  {loading ? "Adding..." : "Add Long Answer Question"}
+                </Button>
+              </form>
+            </div>
+
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
+              <h2 className="text-sm font-semibold text-gray-900 mb-3">Long Answer Guidelines</h2>
+              <ul className="text-sm text-gray-600 space-y-2">
+                <li>• Create a descriptive long answer question prompt.</li>
+                <li>• Do not provide a correct answer; review is manual.</li>
+                <li>• Assign marks for reviewer grading.</li>
+                <li>• Responses are saved separately from objective answers.</li>
               </ul>
             </div>
           </div>
