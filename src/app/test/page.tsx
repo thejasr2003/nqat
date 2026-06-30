@@ -42,6 +42,36 @@ interface LongAnswerQuestion extends BaseQuestion {
 type Question = MCQQuestion | NumericQuestion | WordBlankQuestion | LongAnswerQuestion;
 type AnswerRecord = Record<string, string | string[]>;
 
+const ANSWERS_STORAGE_PREFIX = "assessment_answers";
+
+const getAnswersStorageKey = (candidateId: string | null) => {
+  return `${ANSWERS_STORAGE_PREFIX}_${candidateId || "default"}`;
+};
+
+const safeParseAnswers = (rawValue: string | null): AnswerRecord | null => {
+  if (!rawValue) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(rawValue);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return null;
+    }
+
+    return Object.entries(parsed).reduce<AnswerRecord>((accumulator, [questionId, answer]) => {
+      if (typeof answer === "string") {
+        accumulator[questionId] = answer;
+      } else if (Array.isArray(answer) && answer.every((item) => typeof item === "string")) {
+        accumulator[questionId] = answer;
+      }
+      return accumulator;
+    }, {});
+  } catch {
+    return null;
+  }
+};
+
 function TestContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -55,6 +85,7 @@ function TestContent() {
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<AnswerRecord>({});
+  const [hasRestoredAnswers, setHasRestoredAnswers] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string>("");
   const [hasSubmitted, setHasSubmitted] = useState(false);
@@ -107,6 +138,33 @@ function TestContent() {
       router.replace("/result");
     }
   }, [router]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const storedAnswers = safeParseAnswers(
+      window.localStorage.getItem(getAnswersStorageKey(candidateId))
+    );
+
+    if (storedAnswers) {
+      setAnswers(storedAnswers);
+    }
+
+    setHasRestoredAnswers(true);
+  }, [candidateId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !hasRestoredAnswers) return;
+
+    const storageKey = getAnswersStorageKey(candidateId);
+    const hasAnswers = Object.keys(answers).length > 0;
+
+    if (hasAnswers) {
+      window.localStorage.setItem(storageKey, JSON.stringify(answers));
+    } else {
+      window.localStorage.removeItem(storageKey);
+    }
+  }, [answers, candidateId, hasRestoredAnswers]);
 
   // Fetch questions once on mount
   useEffect(() => {
@@ -220,6 +278,7 @@ function TestContent() {
 
         // Mark assessment as submitted and clean up session data
         localStorage.setItem("assessment_submitted", "true");
+        localStorage.removeItem(getAnswersStorageKey(candidateId));
         localStorage.removeItem("testEndTime");
         localStorage.removeItem("assessment_timer_expired");
         localStorage.removeItem("assessment_force_submit");
